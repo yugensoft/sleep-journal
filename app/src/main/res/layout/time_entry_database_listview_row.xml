@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    android:id="@+id/time_entry_listview_row"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!--
+    <TextView
+        android:id="@+id/TimeEntryListviewId"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:text="ID"
+        android:layout_weight="1">
+    </TextView>
+    -->
+
+    <TextView
+        android:id="@+id/TimeEntryListviewDay"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:text="Day"
+        android:layout_weight="1">
+    </TextView>
+
+    <TextView
+        android:id="@+id/TimeEntryListviewType"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:text="Type"
+        android:layout_weight="1">
+    </TextView>
+
+    <TextView
+        android:id="@+id/TimeEntryListviewDirection"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:text="Direction"
+        android:layout_weight="1">
+    </TextView>
+
+    <TextView
+        android:id="@+id/TimeEntryListviewTime"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:text="Time"
+        android:layout_weight="1">
+    </TextView>
+</LinearLayout>

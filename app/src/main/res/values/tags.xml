@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:android="http://schemas.android.com/apk/res/android">
+    <item name="VIEW_TAG_TIMEENTRY_DIRECTION" type="id"/>
+    <item name="VIEW_TAG_TIMEENTRY_TYPE" type="id"/>
+    <item name="VIEW_TAG_TIMEENTRY_ID" type="id"/>  <!-- // Set to -1 if view is blank -->
+    <item name="VIEW_TAG_BUNDLE" type="id"/>
+
+
+</resources>

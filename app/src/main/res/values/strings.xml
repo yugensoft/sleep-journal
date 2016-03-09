@@ -1,0 +1,117 @@
+<resources>
+    <string name="app_name">Sleep Journal</string>
+
+    <!-- Ads -->
+    <!-- Test ad id -->
+    <string name="banner_ad_unit_test_id">ca-app-pub-3940256099942544/6300978111</string>
+    <!-- 'Bottom Banner on Home' -->
+    <string name="banner_ad_unit_home_id">ca-app-pub-1900169779942183/1538462552</string>
+    <!-- 'Bottom Banner on Report' -->
+    <string name="banner_ad_unit_report_id">ca-app-pub-1900169779942183/3646246953</string>
+
+    <!-- Tag strings -->
+    <string name="TAG_CHANGEABLE">tag_changeable</string>
+
+    <!-- Widget labels -->
+    <string name="current_state_label_text">Now </string>
+    <string name="current_state_intial_text">(unknown)</string>
+    <string name="bedtime_button_text">Bedtime</string>
+    <string name="awake_button_text">Awake</string>
+    <string name="records_report_button_text">Records</string>
+    <string name="extract_button_text">Export Data to CSV</string>
+
+    <string name="title_activity_targets">Sleep targets</string>
+    <string name="title_activity_records">Sleep records</string>
+    <string name="title_activity_report">Sleep report</string>
+
+    <!-- Arrays -->
+    <string name="last_week">Last week</string>
+    <string name="last_fortnight">Last fortnight</string>
+    <string name="last_month">Last month</string>
+    <string name="custom">Custom</string>
+    <string-array name="time_period_options">
+        <item>@string/last_week</item>
+        <item>@string/last_fortnight</item>
+        <item>@string/last_month</item>
+        <item>@string/custom</item>
+    </string-array>
+
+    <!-- Toast messages -->
+    <string name="toast_awake_registered">Wake-up has been registered</string>
+    <string name="toast_bedtime_registered">Bed-time has been registered</string>
+
+    <string name="hello_world">Hello world!</string>
+
+    <string name="default_targets_label">Daily defaults</string>
+    <string name="custom_targets_label">Custom targets</string>
+    <string name="default_targets_day_label">Day</string>
+    <string name="default_targets_wake_label">Wake time</string>
+    <string name="default_targets_bedtime_label">Bed time</string>
+    <string name="targets_button_text">Targets</string>
+    <string name="add_custom_target_label">Add</string>
+    <string name="fragment_add_custom_target_date_label">Date:</string>
+    <string name="fragment_add_custom_target_time_label">Time:</string>
+    <string name="fragment_add_custom_target_date_default_text">(empty)</string>
+    <string name="fragment_add_custom_target_time_default_text">(empty)</string>
+    <string name="fragment_add_custom_target_wakeup_label">Wakeup</string>
+    <string name="fragment_add_custom_target_bedtime_label">Bedtime</string>
+    <string name="fragment_add_custom_target_cancel">Cancel</string>
+    <string name="fragment_add_custom_target_ok">OK</string>
+    <string name="custom_target_picker_title_new">New custom target</string>
+    <string name="custom_target_picker_delete_label">Delete</string>
+    <string name="fragment_add_custom_target_delete">Delete</string>
+    <string name="custom_target_picker_notify_added">Added new custom target</string>
+    <string name="custom_target_picker_notify_updated">Updated existing target</string>
+    <string name="custom_target_picker_title_change">Edit custom target</string>
+    <string name="main_state_awake">Now awake</string>
+    <string name="main_state_asleep">Now asleep</string>
+    <string name="main_state_unknown">Now unknown...</string>
+    <string name="main_warning_already_asleep">Already asleep!</string>
+    <string name="main_warning_already_awake">Already awake!</string>
+    <string name="deleted_custom_target">Deleted custom target</string>
+    <string name="must_choose_wakeup_or_bedtime">Please choose Wakeup or Bedtime!</string>
+    <string name="must_choose_date_and_time">Please fill in both date and time!</string>
+    <string name="change_sleep_record_dialog_title">Edit sleep record</string>
+    <string name="custom_record_picker_notify_added">Added new sleep record</string>
+    <string name="custom_record_picker_notify_changed">Updated sleep record</string>
+    <string name="deleted_sleep_record">Deleted sleep record</string>
+    <string name="empty">(empty)</string>
+    <string name="delete_date_label">Date:</string>
+    <string name="delete_time_label">Time:</string>
+    <string name="add_record">Add new</string>
+    <string name="activity_records_title">Sleep records:</string>
+    <string name="original_label">Original:</string>
+    <string name="add_sleep_record_dialog_title">Add sleep record</string>
+    <string name="noon_note">Note: Bedtimes before noon are placed on the next day</string>
+    <string name="label_total_sleep">Total sleep</string>
+    <string name="report_value_unknown">(unknown)</string>
+    <string name="label_average_sleep">Average sleep per day</string>
+    <string name="label_wakeup_compliance">Wakeup compliance*</string>
+    <string name="label_bedtime_compliance">Bedtime compliance*</string>
+    <string name="label_app_usage">App usage (sleeps recorded)</string>
+    <string name="label_time_period">Time period:</string>
+    <string name="label_time_period_start">Start:</string>
+    <string name="label_time_period_end">End:</string>
+    <string name="report_button_text">Sleep report</string>
+    <string name="default_targets_missing">Default targets missing...</string>
+    <string name="sleep_state_image_desc">Sleep state image</string>
+    <string name="target_section_title">Targets</string>
+    <string name="target_section_desc">Set daily wakeup and bedtime targets, and one-off custom targets for specific dates.</string>
+    <string name="record_section_title">Records</string>
+    <string name="record_section_desc">View existing wakeup and bedtime records.</string>
+    <string name="toast_bedtime_updated">Bed-time updated</string>
+    <string name="toast_awake_updated">Wake-up has been updated</string>
+    <string name="error_generating_csv">"Error generating CSV: "</string>
+    <string name="report_note">"* Compliance indicates how close, on average, sleep records are to the targets (in hours). \nPositive numbers indicate that Wakeup/Bedtimes are later than the targets. \nNegative numbers indicate that Wakeup/Bedtimes are earlier than the targets."</string>
+    <string name="howto_button_text">How to use</string>
+    <string name="title_activity_how_to">How to use</string>
+    <string name="action_about">About</string>
+    <string name="about">App developed by Yugensoft\n\u00A9 2016\n\nQuestions, feedback, complaints and requests to:\nsimplesleepjournal@yugensoft.com</string>
+    <string name="last_awoke">"Awoke at "</string>
+    <string name="last_asleep">"Went to bed at "</string>
+    <string name="late">late</string>
+    <string name="early">early</string>
+    <string name="title_activity_comparison_bar_test">ComparisonBarTestActivity</string>
+
+
+</resources>
