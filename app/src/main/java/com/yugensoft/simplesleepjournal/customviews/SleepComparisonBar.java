@@ -6,9 +6,11 @@ import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.LinearGradient;
 import android.graphics.Paint;
+import android.graphics.Point;
 import android.graphics.RectF;
 import android.graphics.Shader;
 import android.util.AttributeSet;
+import android.util.DisplayMetrics;
 import android.view.View;
 
 import com.yugensoft.simplesleepjournal.HumanReadableConverter;
@@ -37,13 +39,14 @@ public class SleepComparisonBar extends View {
     private float mHorizontalBarThickness;
     private int mTextPos;
     private float mTextToBarPadding;
-    private String mTextLine1;
+    private String mTextLine1 = "";
     private float mTextLine1X;
     private float mTextLine1Y;
-    private String mTextLine2;
+    private String mTextLine2 = "";
     private float mTextLine2X;
     private float mTextLine2Y;
     private float mTextWidth = 0.0f;
+    private float mExpectedMaximumTextWidth = 0.0f;
     private float mTextHeight = 0.0f;
     private int mHorizontalBarColor;
     private int mHorizontalBarBorderColor;
@@ -109,6 +112,7 @@ public class SleepComparisonBar extends View {
     }
     public void setBarThickness(float mBarThickness) {
         this.mHorizontalBarThickness = mBarThickness;
+        onDataChanged();
         invalidate();
     }
     public float getTextWidth() {
@@ -134,6 +138,7 @@ public class SleepComparisonBar extends View {
                     "TextPos must be one of TEXTPOS_LEFT or TEXTPOS_RIGHT");
         }
         mTextPos = textPos;
+        onDataChanged();
         invalidate();
     }
     public float getTimeDifference() {
@@ -148,6 +153,7 @@ public class SleepComparisonBar extends View {
         } else {
             this.mTextLine2 = getContext().getString(R.string.early);
         }
+        onDataChanged();
         invalidate();
     }
 
@@ -168,7 +174,6 @@ public class SleepComparisonBar extends View {
     protected void onSizeChanged(int w, int h, int oldw, int oldh) {
         super.onSizeChanged(w, h, oldw, oldh);
 
-        //
         // Set dimensions for text, bars, etc
         //
         // Account for padding
@@ -181,17 +186,23 @@ public class SleepComparisonBar extends View {
         mBounds = new RectF(0, 0, ww, hh);
         mBounds.offsetTo(getPaddingLeft(), getPaddingTop());
 
+        // Regenerate view
+        onDataChanged();
+    }
+
+    private void onDataChanged() {
         // Determine text dimensions
         mTextHeight = mHorizontalBarThickness / 2;
         mTextPaint.setTextSize(mTextHeight);
         mTextWidth = Math.max(mTextPaint.measureText(mTextLine1), mTextPaint.measureText(mTextLine2));
+        mTextWidth = Math.max(mTextWidth, mExpectedMaximumTextWidth); // Stops jumpy rendering and different bar sizes
 
         // Determine moving bar dimensions
         float movingBarWidth = mHorizontalBarThickness * MOVING_BAR_WIDTH_FACTOR;
         float movingBarHeight = mHorizontalBarThickness * MOVING_BAR_HEIGHT_FACTOR;
 
         // Make adjustments based on text position
-        float horizontalBarWidth = ww - (mTextWidth + mTextToBarPadding);
+        float horizontalBarWidth = mBounds.width() - (mTextWidth + mTextToBarPadding);
         if (mTextPos == TEXTPOS_LEFT) {
             mTextPaint.setTextAlign(Paint.Align.RIGHT);
             mHorizontalBarBorder = new RectF(
@@ -243,8 +254,8 @@ public class SleepComparisonBar extends View {
                 mHorizontalBarBorder.centerY() - centerBarHeight/2,
                 mHorizontalBarBorder.centerX() + centerBarWidth/2,
                 mHorizontalBarBorder.centerY() + centerBarHeight/2
-                );
-        
+        );
+
         // Place the Moving Bar
         float timeDiff = (float)mTimeDifference / (60*60*1000);
         if(timeDiff > TIME_DIFFERENCE_BOUNDARY) {
@@ -264,22 +275,28 @@ public class SleepComparisonBar extends View {
                 movingBarCenterX + movingBarWidth/2,
                 movingBarCenterY + movingBarHeight/2
         );
+    }
 
+    //
+    // Measurement functions.
+    //
+    @Override
+    protected int getSuggestedMinimumWidth() {
+        return (int) (mHorizontalBarThickness * 5);
     }
 
     @Override
-    protected void onLayout(boolean changed, int l, int t, int r, int b) {
-        // Do nothing. Do not call the superclass method
+    protected int getSuggestedMinimumHeight() {
+        return (int) (mHorizontalBarThickness * MOVING_BAR_HEIGHT_FACTOR);
     }
 
     @Override
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
         // Try for a width based on our minimum
         int minw = getPaddingLeft() + getPaddingRight() + getSuggestedMinimumWidth();
-
         int w = Math.max(minw, MeasureSpec.getSize(widthMeasureSpec));
 
-        int minh = (int) (mHorizontalBarThickness * MOVING_BAR_HEIGHT_FACTOR) + getPaddingBottom() + getPaddingTop();
+        int minh = getPaddingBottom() + getPaddingTop() + getSuggestedMinimumHeight();
         int h = Math.min(MeasureSpec.getSize(heightMeasureSpec), minh);
 
         setMeasuredDimension(w, h);
@@ -294,11 +311,16 @@ public class SleepComparisonBar extends View {
         mTextPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         mTextPaint.setColor(mTextColor);
         mTextPaint.setStyle(Paint.Style.FILL);
+        mTextHeight = mHorizontalBarThickness / 2;
         if (mTextHeight == 0) {
             mTextHeight = mTextPaint.getTextSize();
         } else {
             mTextPaint.setTextSize(mTextHeight);
         }
+        mExpectedMaximumTextWidth = Math.max(
+                mTextPaint.measureText(getResources().getString(R.string.early)),
+                mTextPaint.measureText(getResources().getString(R.string.late))
+        );
 
         // Set up the paints for the bars
         mCenterBarPaint = new Paint(0);

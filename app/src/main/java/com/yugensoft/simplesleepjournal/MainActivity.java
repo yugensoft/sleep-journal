@@ -4,6 +4,7 @@ import android.content.ContentValues;
 import android.content.Intent;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
+import android.graphics.Point;
 import android.net.Uri;
 import android.os.Handler;
 import android.support.v7.app.ActionBarActivity;
@@ -29,14 +30,11 @@ import java.lang.annotation.Target;
 
 
 // General Todos:
-// TODO - complete googles pre-launch tests and instructions
-// TODO - prepare the basic promotional materials
-// TODO - PUBLISH!!!!!
+// TODO: Add reporting, add bar-style sleep visualization with target markers superimposed
 
-// Revision 2 Notes:
+// Next Revision Notes:
 // Add graphical time bars on current day + add/modify records + in records list
 // Add records month splitters
-// Add reporting, add bar-style sleep visualization with target markers superimposed
 public class MainActivity extends ActionBarActivity {
 
     // states
@@ -73,8 +71,6 @@ public class MainActivity extends ActionBarActivity {
                 .build();
         mAdView.loadAd(adRequest);
 
-        // TODO: remove, test only
-        startActivity(new Intent(this, ComparisonBarTestActivity.class));
     }
 
     @Override

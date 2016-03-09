@@ -14,10 +14,12 @@ import android.widget.TextView;
 
 import com.google.android.gms.ads.AdRequest;
 import com.google.android.gms.ads.AdView;
+import com.yugensoft.simplesleepjournal.customviews.SleepComparisonBar;
 import com.yugensoft.simplesleepjournal.database.TimeEntry;
 import com.yugensoft.simplesleepjournal.database.TimeEntryDbHandler;
 
 import org.joda.time.DateTime;
+import org.joda.time.Duration;
 
 public class ReportActivity extends ActionBarActivity {
     private static final int TOTAL_DEFAULT_TARGETS = 14; // 7 days, 2 directions
@@ -127,6 +129,8 @@ public class ReportActivity extends ActionBarActivity {
         final TextView txtWakeupCompliance = (TextView)findViewById(R.id.wakeup_compliance);
         final TextView txtBedtimeCompliance = (TextView)findViewById(R.id.bedtime_compliance);
         final TextView txtAppUsage = (TextView)findViewById(R.id.app_usage);
+        final SleepComparisonBar wakeupBar = (SleepComparisonBar)findViewById(R.id.wakeup_comparison_bar);
+        final SleepComparisonBar bedtimeBar = (SleepComparisonBar)findViewById(R.id.bedtime_comparison_bar);
 
         // Needs the time period set to generate the report
         if (timeStart == 0 || timeEnd == 0)
@@ -191,9 +195,10 @@ public class ReportActivity extends ActionBarActivity {
                 Cursor cursorDefaultsCheck = db.rawQuery(queryDefaultsCheck, null);
 
                 final long defaults_count;
+                final long bedtime_compliance_ms, wakeup_compliance_ms;
                 final String wakeup_compliance;
                 final String bedtime_compliance;
-                boolean defaultsMissing;
+                final boolean defaultsMissing;
                 if(cursorDefaultsCheck != null && cursorSleepAggregates.getCount() > 0) {
                     cursorDefaultsCheck.moveToNext();
                     defaults_count = cursorDefaultsCheck.getLong(cursorDefaultsCheck.getColumnIndexOrThrow("defaults_count"));
@@ -210,30 +215,48 @@ public class ReportActivity extends ActionBarActivity {
                 if (defaultsMissing) {
                     wakeup_compliance = getString(R.string.default_targets_missing);
                     bedtime_compliance = getString(R.string.default_targets_missing);
+                    wakeup_compliance_ms = 0;
+                    bedtime_compliance_ms = 0;
                 } else {
                     Cursor cursorWakeupCompliance = db.rawQuery(complianceQuery(TimeEntry.Direction.WAKE, timeStart, timeEnd),null);
                     cursorWakeupCompliance.moveToNext();
-                    wakeup_compliance = new HumanReadableConverter(ReportActivity.this).MillisecondsToStandard(
-                            cursorWakeupCompliance.getLong(cursorWakeupCompliance.getColumnIndexOrThrow("average_offset_time")),
+                    wakeup_compliance_ms = cursorWakeupCompliance.getLong(cursorWakeupCompliance.getColumnIndexOrThrow("average_offset_time"));
+                    wakeup_compliance = new HumanReadableConverter(ReportActivity.this).MillisecondsToStandard(wakeup_compliance_ms,
                             true);
-                    Cursor cursorBedtimeCompliance = db.rawQuery(complianceQuery(TimeEntry.Direction.BEDTIME, timeStart, timeEnd),null);
+                    Cursor cursorBedtimeCompliance = db.rawQuery(complianceQuery(TimeEntry.Direction.BEDTIME, timeStart, timeEnd), null);
                     cursorBedtimeCompliance.moveToNext();
-                    bedtime_compliance = new HumanReadableConverter(ReportActivity.this).MillisecondsToStandard(
-                            cursorBedtimeCompliance.getLong(cursorBedtimeCompliance.getColumnIndexOrThrow("average_offset_time")),
+                    bedtime_compliance_ms = cursorBedtimeCompliance.getLong(cursorBedtimeCompliance.getColumnIndexOrThrow("average_offset_time"));
+                    bedtime_compliance = new HumanReadableConverter(ReportActivity.this).MillisecondsToStandard(bedtime_compliance_ms,
                             true);
                     
                 }
 
-                // Set the textviews with the values
+                // Set the textviews and bars with the values
                 handler.post(new Runnable() {
                     public void run() {
                         HumanReadableConverter hcr = new HumanReadableConverter(ReportActivity.this);
                         txtAverageSleep.setText(hcr.MillisecondsToStandard(average_sleep, false));
                         txtTotalSleep.setText(hcr.MillisecondsToStandard(total_sleep, false));
-                        txtWakeupCompliance.setText(wakeup_compliance);
-                        txtBedtimeCompliance.setText(bedtime_compliance);
+                        if(defaultsMissing) {
+                            txtWakeupCompliance.setText(wakeup_compliance);
+                            txtBedtimeCompliance.setText(bedtime_compliance);
 
-                        int sleeps_in_period = (int)(new org.joda.time.Duration(sStartOfPeriod, sEndOfPeriod).getStandardDays());
+                            txtWakeupCompliance.setVisibility(View.VISIBLE);
+                            txtBedtimeCompliance.setVisibility(View.VISIBLE);
+                            wakeupBar.setVisibility(View.GONE);
+                            bedtimeBar.setVisibility(View.GONE);
+                        } else {
+                            bedtimeBar.setTimeDifference(bedtime_compliance_ms);
+                            wakeupBar.setTimeDifference(wakeup_compliance_ms);
+
+                            txtWakeupCompliance.setVisibility(View.GONE);
+                            txtBedtimeCompliance.setVisibility(View.GONE);
+                            wakeupBar.setVisibility(View.VISIBLE);
+                            bedtimeBar.setVisibility(View.VISIBLE);
+
+                        }
+
+                        int sleeps_in_period = (int)(new Duration(sStartOfPeriod, sEndOfPeriod).getStandardDays());
                         int appUsagePercentage = (int)(((double)sleep_count / (double)sleeps_in_period) * 100);
                         txtAppUsage.setText("" + sleep_count + " / " + sleeps_in_period + " (" + appUsagePercentage + "%)");
                     }

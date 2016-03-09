@@ -86,8 +86,8 @@
     <string name="label_total_sleep">Total sleep</string>
     <string name="report_value_unknown">(unknown)</string>
     <string name="label_average_sleep">Average sleep per day</string>
-    <string name="label_wakeup_compliance">Wakeup compliance*</string>
-    <string name="label_bedtime_compliance">Bedtime compliance*</string>
+    <string name="label_wakeup_compliance">Wakeup compliance</string>
+    <string name="label_bedtime_compliance">Bedtime compliance</string>
     <string name="label_app_usage">App usage (sleeps recorded)</string>
     <string name="label_time_period">Time period:</string>
     <string name="label_time_period_start">Start:</string>
@@ -102,7 +102,6 @@
     <string name="toast_bedtime_updated">Bed-time updated</string>
     <string name="toast_awake_updated">Wake-up has been updated</string>
     <string name="error_generating_csv">"Error generating CSV: "</string>
-    <string name="report_note">"* Compliance indicates how close, on average, sleep records are to the targets (in hours). \nPositive numbers indicate that Wakeup/Bedtimes are later than the targets. \nNegative numbers indicate that Wakeup/Bedtimes are earlier than the targets."</string>
     <string name="howto_button_text">How to use</string>
     <string name="title_activity_how_to">How to use</string>
     <string name="action_about">About</string>
