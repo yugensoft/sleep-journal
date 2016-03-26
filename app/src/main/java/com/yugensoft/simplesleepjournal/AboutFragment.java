@@ -4,14 +4,17 @@ package com.yugensoft.simplesleepjournal;
 import android.app.Dialog;
 import android.os.Bundle;
 import android.support.v4.app.DialogFragment;
-import android.support.v4.app.Fragment;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.Window;
 
+import com.google.android.gms.analytics.HitBuilders;
+import com.google.android.gms.analytics.Tracker;
+
 
 public class AboutFragment extends DialogFragment {
+    private Tracker mTracker;
 
     public AboutFragment() {
         // Required empty public constructor
@@ -21,7 +24,20 @@ public class AboutFragment extends DialogFragment {
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
+        // Obtain the shared Tracker instance.
+        SimpleSleepJournalApplication application = (SimpleSleepJournalApplication) getActivity().getApplication();
+        mTracker = application.getDefaultTracker();
     }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+
+        // Tracking
+        mTracker.setScreenName("Image~" + this.getClass().getSimpleName());
+        mTracker.send(new HitBuilders.ScreenViewBuilder().build());
+    }
+
 
     @Override
     public Dialog onCreateDialog(Bundle savedInstanceState) {

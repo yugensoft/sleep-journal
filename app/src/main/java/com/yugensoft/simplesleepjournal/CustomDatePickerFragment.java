@@ -4,7 +4,6 @@ import android.widget.DatePicker;
 import android.widget.Toast;
 
 /**
- * Created by yugensoft on 25/07/2015.
  */
 public class CustomDatePickerFragment extends DatePickerFragment {
 

@@ -13,12 +13,13 @@ import android.widget.RelativeLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.google.android.gms.analytics.HitBuilders;
+import com.google.android.gms.analytics.Tracker;
 import com.yugensoft.simplesleepjournal.database.TimeEntry;
 
 import org.joda.time.DateTime;
 
 /**
- * Created by yugensoft on 25/07/2015.
  */
 public class CustomEntryPickerFragment extends DialogFragment {
     public static final String TAG_TITLE = "title";
@@ -47,10 +48,30 @@ public class CustomEntryPickerFragment extends DialogFragment {
     private String direction;
 
     private View fragmentView;
+    private Tracker mTracker;
+
 
     public static abstract class PickerCallback {
         public abstract void callbackSet(int year, int month, int day, int hour, int minute, String direction);
         public abstract void callbackDelete(int year, int month, int day, int hour, int minute, String direction, long rowId);
+    }
+
+    @Override
+    public void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+
+        // Obtain the shared Tracker instance.
+        SimpleSleepJournalApplication application = (SimpleSleepJournalApplication) getActivity().getApplication();
+        mTracker = application.getDefaultTracker();
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+
+        // Tracking
+        mTracker.setScreenName("Image~" + this.getClass().getSimpleName());
+        mTracker.send(new HitBuilders.ScreenViewBuilder().build());
     }
 
     @Override

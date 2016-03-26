@@ -1,14 +1,15 @@
 package com.yugensoft.simplesleepjournal;
 
 import android.os.Bundle;
-import android.app.Activity;
 import android.support.v7.app.ActionBarActivity;
-import android.text.Html;
-import android.text.method.LinkMovementMethod;
 import android.webkit.WebView;
-import android.widget.TextView;
+
+import com.google.android.gms.analytics.HitBuilders;
+import com.google.android.gms.analytics.Tracker;
 
 public class HowToActivity extends ActionBarActivity {
+    private Tracker mTracker;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -21,6 +22,19 @@ public class HowToActivity extends ActionBarActivity {
         view.setHorizontalScrollBarEnabled(false);
         view.loadUrl("file:///android_asset/howto.html");
         //setContentView(view);
+
+        // Obtain the shared Tracker instance.
+        SimpleSleepJournalApplication application = (SimpleSleepJournalApplication) getApplication();
+        mTracker = application.getDefaultTracker();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+
+        // Tracking
+        mTracker.setScreenName("Image~" + this.getClass().getSimpleName());
+        mTracker.send(new HitBuilders.ScreenViewBuilder().build());
     }
 
 }

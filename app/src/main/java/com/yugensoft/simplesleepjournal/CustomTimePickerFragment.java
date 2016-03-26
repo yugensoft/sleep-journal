@@ -4,7 +4,6 @@ import android.widget.TimePicker;
 import android.widget.Toast;
 
 /**
- * Created by yugensoft on 25/07/2015.
  */
 public class CustomTimePickerFragment extends TimePickerFragment {
 

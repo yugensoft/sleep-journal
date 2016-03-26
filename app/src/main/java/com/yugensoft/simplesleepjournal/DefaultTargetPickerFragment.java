@@ -12,7 +12,6 @@ import com.yugensoft.simplesleepjournal.database.TimeEntryDbHandler;
 import org.joda.time.Period;
 
 /**
- * Created by yugensoft on 25/07/2015.
  */
 public class DefaultTargetPickerFragment extends TimePickerFragment {
 

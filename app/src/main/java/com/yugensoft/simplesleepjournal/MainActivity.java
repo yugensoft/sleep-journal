@@ -4,7 +4,6 @@ import android.content.ContentValues;
 import android.content.Intent;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
-import android.graphics.Point;
 import android.net.Uri;
 import android.os.Handler;
 import android.support.v7.app.ActionBarActivity;
@@ -18,19 +17,18 @@ import android.widget.Toast;
 
 import com.google.android.gms.ads.AdRequest;
 import com.google.android.gms.ads.AdView;
+import com.google.android.gms.analytics.HitBuilders;
+import com.google.android.gms.analytics.Tracker;
 import com.yugensoft.simplesleepjournal.contentprovider.TimeEntryContentProvider;
-import com.yugensoft.simplesleepjournal.customviews.SleepComparisonBar;
 import com.yugensoft.simplesleepjournal.database.TimeEntry;
 import com.yugensoft.simplesleepjournal.database.TimeEntryDbHandler;
 import com.squareup.picasso.Picasso;
 
 import org.joda.time.DateTime;
 
-import java.lang.annotation.Target;
-
 
 // General Todos:
-// TODO: Add reporting, add bar-style sleep visualization with target markers superimposed
+// TODO: Finish adding analytics
 
 // Next Revision Notes:
 // Add graphical time bars on current day + add/modify records + in records list
@@ -43,6 +41,8 @@ public class MainActivity extends ActionBarActivity {
     public final int STATE_UNKNOWN = 2;
 
     private int state = STATE_UNKNOWN;
+
+    private Tracker mTracker;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -71,6 +71,9 @@ public class MainActivity extends ActionBarActivity {
                 .build();
         mAdView.loadAd(adRequest);
 
+        // Obtain the shared Tracker instance.
+        SimpleSleepJournalApplication application = (SimpleSleepJournalApplication) getApplication();
+        mTracker = application.getDefaultTracker();
     }
 
     @Override
@@ -123,6 +126,15 @@ public class MainActivity extends ActionBarActivity {
 
             }
         }.start();
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+
+        // Tracking
+        mTracker.setScreenName("Image~" + this.getClass().getSimpleName());
+        mTracker.send(new HitBuilders.ScreenViewBuilder().build());
     }
 
     @Override
@@ -216,6 +228,12 @@ public class MainActivity extends ActionBarActivity {
 
         // Update the state
         setState(STATE_AWAKE);
+
+        // Tracking
+        mTracker.send(new HitBuilders.EventBuilder()
+                .setCategory("Action")
+                .setAction("Record wakeup")
+                .build());
     }
 
     // Function to record a bed time
@@ -273,6 +291,12 @@ public class MainActivity extends ActionBarActivity {
 
         // Update the state
         setState(STATE_ASLEEP);
+
+        // Tracking
+        mTracker.send(new HitBuilders.EventBuilder()
+                .setCategory("Action")
+                .setAction("Record bedtime")
+                .build());
     }
 
 
@@ -290,6 +314,12 @@ public class MainActivity extends ActionBarActivity {
     public void exportData() {
         ExportToCsvTask task = new ExportToCsvTask(MainActivity.this);
         task.execute();
+
+        // Tracking
+        mTracker.send(new HitBuilders.EventBuilder()
+                .setCategory("Action")
+                .setAction("ExportToCSV")
+                .build());
     }
 
     // Method to open targets activity to manage targets

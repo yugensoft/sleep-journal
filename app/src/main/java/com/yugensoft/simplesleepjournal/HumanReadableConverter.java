@@ -13,7 +13,6 @@ import org.joda.time.format.DateTimeFormatter;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Created by yugensoft on 31/07/2015.
  */
 public class HumanReadableConverter {
     private Context mContext;

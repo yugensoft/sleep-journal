@@ -17,7 +17,6 @@ import com.yugensoft.simplesleepjournal.database.TimeEntryDbHandler;
 import java.text.DateFormatSymbols;
 
 /**
- * Created by yugensoft on 21/07/2015.
  *
  * Design notes:
  * With DEFAULT times, the Duration from the CenterOfDay and the wakeup/bedtime is stored in the time field.

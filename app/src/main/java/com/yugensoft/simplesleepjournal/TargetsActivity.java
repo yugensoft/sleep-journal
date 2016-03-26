@@ -17,6 +17,8 @@ import android.widget.GridView;
 import android.widget.ListView;
 import android.widget.Toast;
 
+import com.google.android.gms.analytics.HitBuilders;
+import com.google.android.gms.analytics.Tracker;
 import com.yugensoft.simplesleepjournal.contentprovider.TimeEntryContentProvider;
 import com.yugensoft.simplesleepjournal.database.TimeEntry;
 import com.yugensoft.simplesleepjournal.database.TimeEntryDbHandler;
@@ -28,6 +30,8 @@ import org.joda.time.Period;
 
 public class TargetsActivity extends ActionBarActivity implements LoaderManager.LoaderCallbacks<Cursor> {
     private static final int REQUEST_CODE_TIME_PICKER = 0;
+
+    private Tracker mTracker;
 
     // The loader's unique id. Loader ids are specific to the Activity
     private static final int LOADER_ID = 1;
@@ -65,47 +69,7 @@ public class TargetsActivity extends ActionBarActivity implements LoaderManager.
 
         // When items on the grid are pressed:
         // -- Show a time picker, which then updates the gridview values after a change
-        gridview.setOnItemClickListener(new AdapterView.OnItemClickListener() {
-            public void onItemClick(AdapterView<?> parent, View v, int position, long id) {
-                Bundle bundle = (Bundle)v.getTag(R.id.VIEW_TAG_BUNDLE);
-                if (bundle == null || !bundle.getBoolean(getString(R.string.TAG_CHANGEABLE))) {
-                    return;
-                }
-
-                DefaultTargetPickerFragment dialogFragment = new DefaultTargetPickerFragment();
-
-                dialogFragment.pickerCallback = new DefaultTargetPickerFragment.PickerCallback() {
-                    @Override
-                    public void callback(int hourOfDay, int minute) {
-                        ((DefaultTargetsGridviewAdapter)gridview.getAdapter()).notifyDataSetChanged();
-                        previousHourChoice = hourOfDay;
-                        previousMinuteChoice = minute;
-                    }
-                };
-
-                // Supply default time to picker if selected element not empty
-                if (bundle.getLong(TimeEntryDbHandler._ID) > 0) {
-                    Duration d = new Duration(bundle.getLong(TimeEntryDbHandler.COLUMN_TIME));
-                    Period p = d.plus(Period.hours(12).toStandardDuration()).toPeriod(); // Normalize, duration is centered on noon
-                    bundle.putInt(dialogFragment.TAG_DEFAULT_HOUR, p.getHours() % 24);
-                    bundle.putInt(dialogFragment.TAG_DEFAULT_MINUTE, p.getMinutes());
-                    bundle.putBoolean(dialogFragment.TAG_ARE_DEFAULTS, true);
-                } else {
-                    // For empty elements, use previous picker choice, or leave defaults blank if no previous choice
-                    // Helps user fill defaults on first use
-                    if (previousHourChoice != -1 && previousMinuteChoice != -1) {
-                        bundle.putInt(dialogFragment.TAG_DEFAULT_HOUR, previousHourChoice % 24);
-                        bundle.putInt(dialogFragment.TAG_DEFAULT_MINUTE, previousMinuteChoice);
-                        bundle.putBoolean(dialogFragment.TAG_ARE_DEFAULTS, true);
-                    }
-                }
-
-                dialogFragment.setArguments(bundle);
-
-                dialogFragment.show(getSupportFragmentManager(), "defaultTimePicker");
-            }
-        });
-
+        gridview.setOnItemClickListener(GridClickListener);
 
         // Custom Targets
         // Initialize the CursorLoader
@@ -113,18 +77,16 @@ public class TargetsActivity extends ActionBarActivity implements LoaderManager.
 
         lvTargets = (ListView) findViewById(R.id.custom_targets_list);
 
-        String[] from =
-                {
-                        TimeEntryDbHandler.COLUMN_CENTER_OF_DAY,
-                        TimeEntryDbHandler.COLUMN_DIRECTION,
-                        TimeEntryDbHandler.COLUMN_TIME,
-                };
-        int[] to =
-                {
-                        R.id.TimeEntryListviewDay,
-                        R.id.TimeEntryListviewDirection,
-                        R.id.TimeEntryListviewTime,
-                };
+        String[] from = {
+            TimeEntryDbHandler.COLUMN_CENTER_OF_DAY,
+            TimeEntryDbHandler.COLUMN_DIRECTION,
+            TimeEntryDbHandler.COLUMN_TIME,
+        };
+        int[] to = {
+            R.id.TimeEntryListviewDay,
+            R.id.TimeEntryListviewDirection,
+            R.id.TimeEntryListviewTime,
+        };
 
         // Initialize the adapter. A null cursor is used on initialization, it will be passed when
         // LoaderManager delivers the data on onLoadFinished
@@ -136,32 +98,46 @@ public class TargetsActivity extends ActionBarActivity implements LoaderManager.
         lm.initLoader(LOADER_ID, null, this);
 
         // Set onclick action of listview list items
-        lvTargets.setOnItemClickListener(new AdapterView.OnItemClickListener() {
-            @Override
-            public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
-                Cursor cursor = (Cursor) parent.getItemAtPosition(position);
+        lvTargets.setOnItemClickListener(ListItemClickListener);
 
-                //String msg = "ID: " + String.valueOf(id);
-                //Toast.makeText(TargetsActivity.this, msg, Toast.LENGTH_SHORT).show();
-
-                // Open CustomTargetPicker with defaults set, and the delete button available, and the date frozen
-                CustomEntryPickerFragment fragment = new CustomEntryPickerFragment();
-                Bundle args = new Bundle();
-                args.putLong(fragment.TAG_DEFAULT_DATE, cursor.getLong(cursor.getColumnIndexOrThrow(TimeEntryDbHandler.COLUMN_CENTER_OF_DAY)));
-                args.putLong(fragment.TAG_DEFAULT_TIME, cursor.getLong(cursor.getColumnIndexOrThrow(TimeEntryDbHandler.COLUMN_TIME)));
-                args.putString(fragment.TAG_DEFAULT_DIRECTION, cursor.getString(cursor.getColumnIndexOrThrow(TimeEntryDbHandler.COLUMN_DIRECTION)));
-                args.putBoolean(fragment.TAG_HAS_DELETE, true);
-                args.putBoolean(fragment.TAG_IS_FIXED_DATE, true);
-                args.putBoolean(fragment.TAG_IS_FIXED_DIRECTION, true);
-                args.putString(fragment.TAG_TITLE, getString(R.string.custom_target_picker_title_change));
-                fragment.setArguments(args);
-
-                fragment.pickerCallback = CustomTargetPickerCallback;
-                fragment.show(getSupportFragmentManager(), "customTargetPicker_with_defaults");
-            }
-        });
-
+        // Obtain the shared Tracker instance.
+        SimpleSleepJournalApplication application = (SimpleSleepJournalApplication) getApplication();
+        mTracker = application.getDefaultTracker();
     }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+
+        // Tracking
+        mTracker.setScreenName("Image~" + this.getClass().getSimpleName());
+        mTracker.send(new HitBuilders.ScreenViewBuilder().build());
+    }
+
+    AdapterView.OnItemClickListener ListItemClickListener = new AdapterView.OnItemClickListener() {
+        @Override
+        public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+            Cursor cursor = (Cursor) parent.getItemAtPosition(position);
+
+            //String msg = "ID: " + String.valueOf(id);
+            //Toast.makeText(TargetsActivity.this, msg, Toast.LENGTH_SHORT).show();
+
+            // Open CustomTargetPicker with defaults set, and the delete button available, and the date frozen
+            CustomEntryPickerFragment fragment = new CustomEntryPickerFragment();
+            Bundle args = new Bundle();
+            args.putLong(fragment.TAG_DEFAULT_DATE, cursor.getLong(cursor.getColumnIndexOrThrow(TimeEntryDbHandler.COLUMN_CENTER_OF_DAY)));
+            args.putLong(fragment.TAG_DEFAULT_TIME, cursor.getLong(cursor.getColumnIndexOrThrow(TimeEntryDbHandler.COLUMN_TIME)));
+            args.putString(fragment.TAG_DEFAULT_DIRECTION, cursor.getString(cursor.getColumnIndexOrThrow(TimeEntryDbHandler.COLUMN_DIRECTION)));
+            args.putBoolean(fragment.TAG_HAS_DELETE, true);
+            args.putBoolean(fragment.TAG_IS_FIXED_DATE, true);
+            args.putBoolean(fragment.TAG_IS_FIXED_DIRECTION, true);
+            args.putString(fragment.TAG_TITLE, getString(R.string.custom_target_picker_title_change));
+            fragment.setArguments(args);
+
+            fragment.pickerCallback = CustomTargetPickerCallback;
+            fragment.show(getSupportFragmentManager(), "customTargetPicker_with_defaults");
+        }
+    };
 
     CustomEntryPickerFragment.PickerCallback CustomTargetPickerCallback = new CustomEntryPickerFragment.PickerCallback() {
         @Override
@@ -232,7 +208,15 @@ public class TargetsActivity extends ActionBarActivity implements LoaderManager.
                     });
                 }
             }.start();
+
+
+            // Tracking
+            mTracker.send(new HitBuilders.EventBuilder()
+                    .setCategory("Action")
+                    .setAction("Add custom target")
+                    .build());
         }
+
 
         @Override
         public void callbackDelete(final int year, final int month, final int day, final int hour, final int minute, final String direction, final long rowId) {
@@ -277,6 +261,54 @@ public class TargetsActivity extends ActionBarActivity implements LoaderManager.
 
                 }
             }.start();
+        }
+    };
+
+
+    AdapterView.OnItemClickListener GridClickListener = new AdapterView.OnItemClickListener() {
+        public void onItemClick(AdapterView<?> parent, View v, int position, long id) {
+            Bundle bundle = (Bundle)v.getTag(R.id.VIEW_TAG_BUNDLE);
+            if (bundle == null || !bundle.getBoolean(getString(R.string.TAG_CHANGEABLE))) {
+                return;
+            }
+
+            DefaultTargetPickerFragment dialogFragment = new DefaultTargetPickerFragment();
+
+            dialogFragment.pickerCallback = new DefaultTargetPickerFragment.PickerCallback() {
+                @Override
+                public void callback(int hourOfDay, int minute) {
+                    ((DefaultTargetsGridviewAdapter)gridview.getAdapter()).notifyDataSetChanged();
+                    previousHourChoice = hourOfDay;
+                    previousMinuteChoice = minute;
+
+                    // Tracking
+                    mTracker.send(new HitBuilders.EventBuilder()
+                            .setCategory("Action")
+                            .setAction("Change default target")
+                            .build());
+                }
+            };
+
+            // Supply default time to picker if selected element not empty
+            if (bundle.getLong(TimeEntryDbHandler._ID) > 0) {
+                Duration d = new Duration(bundle.getLong(TimeEntryDbHandler.COLUMN_TIME));
+                Period p = d.plus(Period.hours(12).toStandardDuration()).toPeriod(); // Normalize, duration is centered on noon
+                bundle.putInt(dialogFragment.TAG_DEFAULT_HOUR, p.getHours() % 24);
+                bundle.putInt(dialogFragment.TAG_DEFAULT_MINUTE, p.getMinutes());
+                bundle.putBoolean(dialogFragment.TAG_ARE_DEFAULTS, true);
+            } else {
+                // For empty elements, use previous picker choice, or leave defaults blank if no previous choice
+                // Helps user fill defaults on first use
+                if (previousHourChoice != -1 && previousMinuteChoice != -1) {
+                    bundle.putInt(dialogFragment.TAG_DEFAULT_HOUR, previousHourChoice % 24);
+                    bundle.putInt(dialogFragment.TAG_DEFAULT_MINUTE, previousMinuteChoice);
+                    bundle.putBoolean(dialogFragment.TAG_ARE_DEFAULTS, true);
+                }
+            }
+
+            dialogFragment.setArguments(bundle);
+
+            dialogFragment.show(getSupportFragmentManager(), "defaultTimePicker");
         }
     };
 

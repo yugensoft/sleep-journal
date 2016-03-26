@@ -24,7 +24,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 
 /**
- * Created by yugensoft on 21/07/2015.
  */
 public class ExportToCsvTask extends AsyncTask<Object, Integer, File> {
     private Context mContext;

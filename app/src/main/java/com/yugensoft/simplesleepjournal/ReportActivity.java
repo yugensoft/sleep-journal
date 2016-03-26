@@ -14,6 +14,8 @@ import android.widget.TextView;
 
 import com.google.android.gms.ads.AdRequest;
 import com.google.android.gms.ads.AdView;
+import com.google.android.gms.analytics.HitBuilders;
+import com.google.android.gms.analytics.Tracker;
 import com.yugensoft.simplesleepjournal.customviews.SleepComparisonBar;
 import com.yugensoft.simplesleepjournal.database.TimeEntry;
 import com.yugensoft.simplesleepjournal.database.TimeEntryDbHandler;
@@ -29,6 +31,8 @@ public class ReportActivity extends ActionBarActivity {
     public final String STATE_END_OF_PERIOD = "endOfPeriod";
     private long sStartOfPeriod = 0;
     private long sEndOfPeriod = 0;
+
+    private Tracker mTracker;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -47,53 +51,7 @@ public class ReportActivity extends ActionBarActivity {
         ArrayAdapter<CharSequence> adapter = ArrayAdapter.createFromResource(this, R.array.time_period_options, android.R.layout.simple_spinner_item);
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         spinner.setAdapter(adapter);
-        spinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
-            @Override
-            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-                String selected = parent.getSelectedItem().toString().trim();
-
-                DateTime noonYesterday = new DateTime().withTimeAtStartOfDay().minusHours(12);
-
-                // Check if custom period selected first
-                if (selected.equalsIgnoreCase(getString(R.string.custom))) {
-                    enableCustomTimePeriod(true);
-                    // If no period set already, use a default custom time period of yesterday->yesterday
-                    if (sStartOfPeriod == 0) {
-                        sStartOfPeriod = noonYesterday.getMillis();
-                    }
-                    if (sEndOfPeriod == 0) {
-                        sEndOfPeriod = noonYesterday.getMillis();
-                    }
-                } else {
-                    enableCustomTimePeriod(false);
-                }
-
-                // Check remainder of period options
-                if (selected.equalsIgnoreCase(getString(R.string.last_week))) {
-                    // Last week period, yesterday -> -7 days
-                    sEndOfPeriod = noonYesterday.getMillis();
-                    sStartOfPeriod = noonYesterday.minusDays(7).getMillis();
-                } else if (selected.equalsIgnoreCase(getString(R.string.last_fortnight))) {
-                    // Last fortnight period, yesterday -> -14 days
-                    sStartOfPeriod = noonYesterday.minusDays(14).getMillis();
-                } else if (selected.equalsIgnoreCase(getString(R.string.last_month))) {
-                    // Last month period, yesterday -> 30 days
-                    sStartOfPeriod = noonYesterday.minusDays(30).getMillis();
-                }
-
-                // Update the time period textview texts
-                ((TextView) findViewById(R.id.time_period_start)).setText(new HumanReadableConverter(ReportActivity.this).ConvertDate(sStartOfPeriod));
-                ((TextView) findViewById(R.id.time_period_end)).setText(new HumanReadableConverter(ReportActivity.this).ConvertDate(sEndOfPeriod));
-
-                // Regenerate report
-                generateReport(sStartOfPeriod, sEndOfPeriod);
-            }
-
-            @Override
-            public void onNothingSelected(AdapterView<?> parent) {
-
-            }
-        });
+        spinner.setOnItemSelectedListener(SpinnerClickListener);
 
         // Load the ad
         AdView mAdView = (AdView) findViewById(R.id.adView);
@@ -112,6 +70,19 @@ public class ReportActivity extends ActionBarActivity {
                 .addKeyword("bed")
                 .build();
         mAdView.loadAd(adRequest);
+
+        // Obtain the shared Tracker instance.
+        SimpleSleepJournalApplication application = (SimpleSleepJournalApplication) getApplication();
+        mTracker = application.getDefaultTracker();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+
+        // Tracking
+        mTracker.setScreenName("Image~" + this.getClass().getSimpleName());
+        mTracker.send(new HitBuilders.ScreenViewBuilder().build());
     }
 
     @Override
@@ -120,6 +91,78 @@ public class ReportActivity extends ActionBarActivity {
 
         generateReport(sStartOfPeriod, sEndOfPeriod);
     }
+
+    AdapterView.OnItemSelectedListener SpinnerClickListener = new AdapterView.OnItemSelectedListener() {
+        @Override
+        public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+            String selected = parent.getSelectedItem().toString().trim();
+
+            DateTime noonYesterday = new DateTime().withTimeAtStartOfDay().minusHours(12);
+
+            // Check if custom period selected first
+            if (selected.equalsIgnoreCase(getString(R.string.custom))) {
+                enableCustomTimePeriod(true);
+                // If no period set already, use a default custom time period of yesterday->yesterday
+                if (sStartOfPeriod == 0) {
+                    sStartOfPeriod = noonYesterday.getMillis();
+                }
+                if (sEndOfPeriod == 0) {
+                    sEndOfPeriod = noonYesterday.getMillis();
+                }
+
+                // Tracking
+                mTracker.send(new HitBuilders.EventBuilder()
+                        .setCategory("Action")
+                        .setAction("Select report custom")
+                        .build());
+            } else {
+                enableCustomTimePeriod(false);
+            }
+
+            // Check remainder of period options
+            if (selected.equalsIgnoreCase(getString(R.string.last_week))) {
+                // Last week period, yesterday -> -7 days
+                sEndOfPeriod = noonYesterday.getMillis();
+                sStartOfPeriod = noonYesterday.minusDays(7).getMillis();
+
+                // Tracking
+                mTracker.send(new HitBuilders.EventBuilder()
+                        .setCategory("Action")
+                        .setAction("Select report week")
+                        .build());
+            } else if (selected.equalsIgnoreCase(getString(R.string.last_fortnight))) {
+                // Last fortnight period, yesterday -> -14 days
+                sStartOfPeriod = noonYesterday.minusDays(14).getMillis();
+
+                // Tracking
+                mTracker.send(new HitBuilders.EventBuilder()
+                        .setCategory("Action")
+                        .setAction("Select report fortnight")
+                        .build());
+            } else if (selected.equalsIgnoreCase(getString(R.string.last_month))) {
+                // Last month period, yesterday -> 30 days
+                sStartOfPeriod = noonYesterday.minusDays(30).getMillis();
+
+                // Tracking
+                mTracker.send(new HitBuilders.EventBuilder()
+                        .setCategory("Action")
+                        .setAction("Select report month")
+                        .build());
+            }
+
+            // Update the time period textview texts
+            ((TextView) findViewById(R.id.time_period_start)).setText(new HumanReadableConverter(ReportActivity.this).ConvertDate(sStartOfPeriod));
+            ((TextView) findViewById(R.id.time_period_end)).setText(new HumanReadableConverter(ReportActivity.this).ConvertDate(sEndOfPeriod));
+
+            // Regenerate report
+            generateReport(sStartOfPeriod, sEndOfPeriod);
+        }
+
+        @Override
+        public void onNothingSelected(AdapterView<?> parent) {
+
+        }
+    };
 
     public void generateReport(final long timeStart, final long timeEnd) {
         // Fill the report values from the database
@@ -378,6 +421,13 @@ public class ReportActivity extends ActionBarActivity {
 
         fragment.show(getSupportFragmentManager(), "startOfPeriodPicker");
 
+
+        // Tracking
+        mTracker.send(new HitBuilders.EventBuilder()
+                .setCategory("Action")
+                .setAction("Select report custom start")
+                .build());
+
     }
 
     public void pickEndOfPeriod(View view) {
@@ -402,6 +452,11 @@ public class ReportActivity extends ActionBarActivity {
 
         fragment.show(getSupportFragmentManager(), "endOfPeriodPicker");
 
+        // Tracking
+        mTracker.send(new HitBuilders.EventBuilder()
+                .setCategory("Action")
+                .setAction("Select report custom end")
+                .build());
     }
 
 

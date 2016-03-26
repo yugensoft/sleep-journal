@@ -6,10 +6,12 @@ import android.os.Bundle;
 import android.support.v4.app.DialogFragment;
 import android.widget.DatePicker;
 
+import com.google.android.gms.analytics.HitBuilders;
+import com.google.android.gms.analytics.Tracker;
+
 import java.util.Calendar;
 
 /**
- * Created by yugensoft on 25/07/2015.
  */
 
 public class DatePickerFragment extends DialogFragment implements DatePickerDialog.OnDateSetListener {
@@ -17,6 +19,27 @@ public class DatePickerFragment extends DialogFragment implements DatePickerDial
     public String TAG_DEFAULT_MONTH = "default_month";
     public String TAG_DEFAULT_DAY = "default_day";
     public String TAG_ARE_DEFAULTS = "are_defaults";
+
+    private Tracker mTracker;
+
+
+    @Override
+    public void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+
+        // Obtain the shared Tracker instance.
+        SimpleSleepJournalApplication application = (SimpleSleepJournalApplication) getActivity().getApplication();
+        mTracker = application.getDefaultTracker();
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+
+        // Tracking
+        mTracker.setScreenName("Image~" + this.getClass().getSimpleName());
+        mTracker.send(new HitBuilders.ScreenViewBuilder().build());
+    }
 
     @Override
     public Dialog onCreateDialog(Bundle savedInstanceState) {

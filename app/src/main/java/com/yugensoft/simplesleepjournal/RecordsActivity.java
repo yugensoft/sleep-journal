@@ -16,6 +16,8 @@ import android.widget.AdapterView;
 import android.widget.ListView;
 import android.widget.Toast;
 
+import com.google.android.gms.analytics.HitBuilders;
+import com.google.android.gms.analytics.Tracker;
 import com.yugensoft.simplesleepjournal.contentprovider.TimeEntryContentProvider;
 import com.yugensoft.simplesleepjournal.database.TimeEntry;
 import com.yugensoft.simplesleepjournal.database.TimeEntryDbHandler;
@@ -39,6 +41,7 @@ public class RecordsActivity extends ActionBarActivity implements LoaderManager.
     private TimeEntryListCursorAdapter mAdapter;
 
     private ListView listView;
+    private Tracker mTracker;
 
 
     @Override
@@ -77,33 +80,48 @@ public class RecordsActivity extends ActionBarActivity implements LoaderManager.
         lm.initLoader(LOADER_ID, null, this);
 
         // Set onclick action of listview list items
-        listView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
-            @Override
-            public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
-                Cursor cursor = (Cursor) parent.getItemAtPosition(position);
+        listView.setOnItemClickListener(ListItemClickListener);
 
-                //String msg = "ID: " + String.valueOf(id);
-                //Toast.makeText(RecordsActivity.this, msg, Toast.LENGTH_SHORT).show();
-
-                CustomEntryPickerFragment fragment = new CustomEntryPickerFragment();
-                Bundle args = new Bundle();
-                args.putLong(fragment.TAG_DEFAULT_DATE, cursor.getLong(cursor.getColumnIndexOrThrow(TimeEntryDbHandler.COLUMN_CENTER_OF_DAY)));
-                args.putLong(fragment.TAG_DEFAULT_TIME, cursor.getLong(cursor.getColumnIndexOrThrow(TimeEntryDbHandler.COLUMN_TIME)));
-                args.putString(fragment.TAG_DEFAULT_DIRECTION, cursor.getString(cursor.getColumnIndexOrThrow(TimeEntryDbHandler.COLUMN_DIRECTION)));
-                args.putLong(fragment.TAG_ROW_ID, id);
-                args.putBoolean(fragment.TAG_HAS_DELETE, true);
-                args.putBoolean(fragment.TAG_IS_FIXED_DATE, true);
-                args.putBoolean(fragment.TAG_IS_FIXED_DIRECTION, true);
-                args.putString(fragment.TAG_TITLE, getString(R.string.change_sleep_record_dialog_title));
-                fragment.setArguments(args);
-
-                fragment.pickerCallback = CustomRecordPickerCallback;
-                fragment.show(getSupportFragmentManager(), "customRecordPicker_with_defaults");
-
-            }
-        });
+        // Obtain the shared Tracker instance.
+        SimpleSleepJournalApplication application = (SimpleSleepJournalApplication) getApplication();
+        mTracker = application.getDefaultTracker();
 
     }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+
+        // Tracking
+        mTracker.setScreenName("Image~" + this.getClass().getSimpleName());
+        mTracker.send(new HitBuilders.ScreenViewBuilder().build());
+    }
+
+    AdapterView.OnItemClickListener ListItemClickListener = new AdapterView.OnItemClickListener() {
+        @Override
+        public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+            Cursor cursor = (Cursor) parent.getItemAtPosition(position);
+
+            //String msg = "ID: " + String.valueOf(id);
+            //Toast.makeText(RecordsActivity.this, msg, Toast.LENGTH_SHORT).show();
+
+            CustomEntryPickerFragment fragment = new CustomEntryPickerFragment();
+            Bundle args = new Bundle();
+            args.putLong(fragment.TAG_DEFAULT_DATE, cursor.getLong(cursor.getColumnIndexOrThrow(TimeEntryDbHandler.COLUMN_CENTER_OF_DAY)));
+            args.putLong(fragment.TAG_DEFAULT_TIME, cursor.getLong(cursor.getColumnIndexOrThrow(TimeEntryDbHandler.COLUMN_TIME)));
+            args.putString(fragment.TAG_DEFAULT_DIRECTION, cursor.getString(cursor.getColumnIndexOrThrow(TimeEntryDbHandler.COLUMN_DIRECTION)));
+            args.putLong(fragment.TAG_ROW_ID, id);
+            args.putBoolean(fragment.TAG_HAS_DELETE, true);
+            args.putBoolean(fragment.TAG_IS_FIXED_DATE, true);
+            args.putBoolean(fragment.TAG_IS_FIXED_DIRECTION, true);
+            args.putString(fragment.TAG_TITLE, getString(R.string.change_sleep_record_dialog_title));
+            fragment.setArguments(args);
+
+            fragment.pickerCallback = CustomRecordPickerCallback;
+            fragment.show(getSupportFragmentManager(), "customRecordPicker_with_defaults");
+
+        }
+    };
 
     CustomEntryPickerFragment.PickerCallback CustomRecordPickerCallback = new CustomEntryPickerFragment.PickerCallback() {
         @Override
@@ -173,6 +191,11 @@ public class RecordsActivity extends ActionBarActivity implements LoaderManager.
                     });
                 }
             }.start();
+
+            mTracker.send(new HitBuilders.EventBuilder()
+                    .setCategory("Action")
+                    .setAction("Add new record manually")
+                    .build());
         }
 
         @Override
