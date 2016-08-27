@@ -28,7 +28,6 @@ import org.joda.time.DateTime;
 
 
 // General Todos:
-// TODO: Finish adding analytics
 
 // Next Revision Notes:
 // Add graphical time bars on current day + add/modify records + in records list
