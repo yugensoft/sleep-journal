@@ -1,0 +1,47 @@
+SleepDiary Design
+==================
+
+Application description
+-----------------------
+The SleepDiary app is for helping maintain sleep higiene, by setting sleep goals and monitoring compliance with those goals.
+
+Use Cases
+----------
+
+- The user records the times he awoke each day, which he can view
+- The user records the times he went to bed each day, which he can view
+- The user compares his wake and bed times against targets that he sets
+- The user examines his total sleep per period of his chosing (per day, per week etc)
+- The user compares his total sleep stats against targets that he sets
+- The user studies his recorded and target times on another device
+
+Requirements
+-------------
+- The app will provide an interface for the user to indicate awake time each day
+- The app will provide an interface for the user to indicate bed time each day
+- The app will provide an interface for the user to set his target wake time for each day of the week
+- The app will provide an interface for the user to set his target bed time for each day of the week
+- The app will provide reports of the following:
+-- Total sleep per period of the users chosing
+-- Averages over that period
+-- Comparison with target total sleep
+-- Comparison of awake time and target awake time
+-- Comparison of bed time and target bed time
+-- App usage statistics
+- The app will provide a facility to export records and targets to an easily-readable file
+
+Layout design
+---------------
+- The awake and bed times are input by pressing a button, with possibility to modify the record times later
+- A 'targets' page is accessible from the main page
+- This targets page allows default targets for each weekday to be set.
+- It also allows specific targets for individual dates to be set.
+- A 'reports' page is accessible from the main page
+- It will provide a button to each separate report page for each of the required reports
+- An export button will be provided in the menu
+
+Software design
+--------------
+- All recorded data and set targets are stored in a database
+- The export format will be CSV file with header
+- The file will be exportable with the android 'share' feature

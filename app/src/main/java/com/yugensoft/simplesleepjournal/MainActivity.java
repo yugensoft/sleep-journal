@@ -1,13 +1,21 @@
 package com.yugensoft.simplesleepjournal;
 
+import android.app.PendingIntent;
+import android.content.ComponentName;
 import android.content.ContentValues;
+import android.content.Context;
 import android.content.Intent;
+import android.content.IntentSender;
+import android.content.ServiceConnection;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.net.Uri;
 import android.os.Handler;
+import android.os.IBinder;
+import android.os.RemoteException;
 import android.support.v7.app.ActionBarActivity;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -15,7 +23,7 @@ import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import com.google.android.gms.ads.AdRequest;
+import com.android.vending.billing.IInAppBillingService;
 import com.google.android.gms.ads.AdView;
 import com.google.android.gms.analytics.HitBuilders;
 import com.google.android.gms.analytics.Tracker;
@@ -25,9 +33,14 @@ import com.yugensoft.simplesleepjournal.database.TimeEntryDbHandler;
 import com.squareup.picasso.Picasso;
 
 import org.joda.time.DateTime;
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import java.util.ArrayList;
 
 
-// General Todos:
+// General Todos (v1.2):
+// todo: fix random "premium monthly" error
 
 // Next Revision Notes:
 // Add graphical time bars on current day + add/modify records + in records list
@@ -41,7 +54,42 @@ public class MainActivity extends ActionBarActivity {
 
     private int state = STATE_UNKNOWN;
 
+    // other constants
+    public final int REQUEST_CODE_BUY_AD_REMOVE = 1001;
+    public final String PRODUCT_ID_AD_REMOVE = "ad_remove"; //TODO
+//    public final String PRODUCT_ID_AD_REMOVE = "android.test.purchased";
+
     private Tracker mTracker;
+    private AdView mAdView;
+    private MenuItem mRemoveAds;
+
+
+    /**
+     * This section is related to the in-app billing
+     */
+    /**
+     * ATTENTION: This was auto-generated to implement the App Indexing API.
+     * See https://g.co/AppIndexing/AndroidStudio for more information.
+     */
+//    private GoogleApiClient client;
+
+    private IInAppBillingService mService;
+    ServiceConnection mServiceConn = new ServiceConnection() {
+        @Override
+        public void onServiceDisconnected(ComponentName name) {
+            mService = null;
+        }
+
+        @Override
+        public void onServiceConnected(ComponentName name, IBinder service) {
+            mService = IInAppBillingService.Stub.asInterface(service);
+            Log.d("in-app billing", "onServiceConnected ");
+
+            // Check if user owns any in-app billing items and perform associated tasks
+            processOwnedAndAvailableItems();
+        }
+    };
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -53,31 +101,147 @@ public class MainActivity extends ActionBarActivity {
         Picasso.with(MainActivity.this).load(R.drawable.sun).fetch();
         Picasso.with(MainActivity.this).load(R.drawable.unknown).fetch();
 
-        AdView mAdView = (AdView) findViewById(R.id.adView);
-        AdRequest adRequest = new AdRequest.Builder()
-                .addTestDevice(AdRequest.DEVICE_ID_EMULATOR)
-                .addTestDevice("F961E2E362704F9592CC2F9CC025A1BF")
-                .addKeyword("sleep")
-                .addKeyword("rest")
-                .addKeyword("tiredness")
-                .addKeyword("insomnia")
-                .addKeyword("well-rested")
-                .addKeyword("lethargic")
-                .addKeyword("bedtime")
-                .addKeyword("exhausted")
-                .addKeyword("exhaustion")
-                .addKeyword("bed")
-                .build();
-        mAdView.loadAd(adRequest);
+        // The ad
+        mAdView = (AdView) findViewById(R.id.adView);
 
         // Obtain the shared Tracker instance.
         SimpleSleepJournalApplication application = (SimpleSleepJournalApplication) getApplication();
         mTracker = application.getDefaultTracker();
+
+        /*
+        ** This part is related to in-ap billing
+         */
+        // ATTENTION: This was auto-generated to implement the App Indexing API.
+        // See https://g.co/AppIndexing/AndroidStudio for more information.
+//        client = new GoogleApiClient.Builder(this).addApi(AppIndex.API).build();
+
+        Intent serviceIntent = new Intent("com.android.vending.billing.InAppBillingService.BIND");
+        serviceIntent.setPackage("com.android.vending");
+        bindService(serviceIntent, mServiceConn, Context.BIND_AUTO_CREATE);
+
+        //-- In-app billing
+    }
+
+    /**
+     * Function to check for any owned and available in-app billing items, and perform associated tasks
+     * If the ad-remove is owned, removes the option to buy it, and disables the ad
+     * Otherwise, gets the price and enables buying menu item
+     *
+     * Notes:
+     * design is that ads will only ever be displayed upon confirmed lack of ad_remove purchase
+     */
+    private void processOwnedAndAvailableItems() {
+        final Handler handler = new Handler();
+        new Thread() {
+            @Override
+            public void run() {
+
+                final String f_adRemovePrice;
+                final boolean f_isAdRemovePurchased;
+
+                // Owned items
+                try {
+                    boolean isAdRemovePurchased = false;
+                    Bundle ownedItems = mService.getPurchases(3, getPackageName(), "inapp", null);
+                    if (ownedItems.getInt("RESPONSE_CODE") == 0) {
+                        ArrayList<String> ownedSkus = ownedItems.getStringArrayList("INAPP_PURCHASE_ITEM_LIST");
+                        ArrayList<String> purchaseDataList = ownedItems.getStringArrayList("INAPP_PURCHASE_DATA_LIST");
+                        ArrayList<String> signatureList = ownedItems.getStringArrayList("INAPP_DATA_SIGNATURE_LIST");
+                        String continuationToken = ownedItems.getString("INAPP_CONTINUATION_TOKEN"); // Not used, only have single-digit number of items
+
+                        for (int i = 0; i < purchaseDataList.size(); ++i) {
+                            String purchaseData = purchaseDataList.get(i);
+                            String signature = signatureList.get(i);
+                            String sku = ownedSkus.get(i);
+
+                            // do something with this purchase information
+                            // e.g. display the updated list of products owned by user
+                            Log.d("in-app billing", "owned item: " + purchaseData + ", " + signature + ", " + sku);
+
+                            if(sku.equals(PRODUCT_ID_AD_REMOVE)){
+                                isAdRemovePurchased = true;
+                            }
+                        }
+                    }
+                    f_isAdRemovePurchased = isAdRemovePurchased;
+                } catch(RemoteException e) {
+                    // Problem of some sort, abandon and leave ad unused
+                    Log.d("in-app billing", "exception");
+                    return;
+                }
+
+                // Available items
+                ArrayList<String> skuList = new ArrayList<String> ();
+                skuList.add(PRODUCT_ID_AD_REMOVE);
+                Bundle querySkus = new Bundle();
+                querySkus.putStringArrayList("ITEM_ID_LIST", skuList);
+
+                try {
+                    String adRemovePrice = null;
+                    Bundle skuDetails = mService.getSkuDetails(3, getPackageName(), "inapp", querySkus);
+                    if (skuDetails.getInt("RESPONSE_CODE") == 0) {
+                        ArrayList<String> responseList = skuDetails.getStringArrayList("DETAILS_LIST");
+
+                        for (String thisResponse : responseList) {
+                            JSONObject object = new JSONObject(thisResponse);
+                            String sku = object.getString("productId");
+                            String price = object.getString("price");
+                            Log.d("in-app billing", "available item: " + sku + ", " + price);
+
+                            if (sku.equals(PRODUCT_ID_AD_REMOVE)) {
+                                adRemovePrice = price;
+                                Log.d("in-app billing", "adRemove price: " + adRemovePrice);
+                                break;
+                            }
+                        }
+                    }
+                    f_adRemovePrice = adRemovePrice;
+                } catch(RemoteException|JSONException e) {
+                    // Problem of some sort, abandon and leave ad unused
+                    Log.d("in-app billing", "exception");
+                    return;
+                }
+
+                // Wait for the options menu to be constructed
+                while(mRemoveAds == null){
+                    Log.d("in-app billing", "no remove_ads menu item");
+                    try {
+                        Thread.sleep(100);
+                    } catch(InterruptedException e){
+                        Log.d("in-app billing", "thread sleep interrupted ");
+                        return;
+                    }
+                }
+
+                // Process and apply results
+                handler.post(new Runnable() {
+                    public void run() {
+                        // Check if ad_remove is purchased
+                        if(!f_isAdRemovePurchased){
+                            AdFunctions.loadAdIntoAdView(mAdView);
+                            // Check if we have a price for ad_remove
+                            if(f_adRemovePrice != null){
+                                mRemoveAds.setTitle(getString(R.string.remove_ads) + " (" + f_adRemovePrice + ")");
+                                mRemoveAds.setEnabled(true);
+                            } else {
+                                mRemoveAds.setEnabled(false);
+                            }
+                        } else {
+                            mRemoveAds.setTitle(getString(R.string.remove_ads) + " (" + getString(R.string.purchased) + ")");
+                            mRemoveAds.setEnabled(false);
+                        }
+                    }
+                });
+            }
+        }.start(); //--thread
     }
 
     @Override
     protected void onStart() {
         super.onStart();
+        // ATTENTION: This was auto-generated to implement the App Indexing API.
+        // See https://g.co/AppIndexing/AndroidStudio for more information.
+//        client.connect();
 
         // Update the current state
         final SQLiteDatabase db = new TimeEntryDbHandler(this).getReadableDatabase();
@@ -88,9 +252,9 @@ public class MainActivity extends ActionBarActivity {
                 long time24hoursAgo = new DateTime().minusHours(24).getMillis();
                 // Get latest time entry that is more recent than 24 hours ago
                 String q = "SELECT * FROM " + TimeEntryDbHandler.TABLE_TIME_ENTRIES + " " +
-                           "WHERE " + TimeEntryDbHandler.COLUMN_TYPE + "='" + TimeEntry.TimeEntryType.TIME_RECORD.name() + "' " +
-                           "AND " + TimeEntryDbHandler.COLUMN_TIME + " > " + String.valueOf(time24hoursAgo) + " " +
-                           "ORDER BY " + TimeEntryDbHandler.COLUMN_TIME + " DESC LIMIT 1";
+                        "WHERE " + TimeEntryDbHandler.COLUMN_TYPE + "='" + TimeEntry.TimeEntryType.TIME_RECORD.name() + "' " +
+                        "AND " + TimeEntryDbHandler.COLUMN_TIME + " > " + String.valueOf(time24hoursAgo) + " " +
+                        "ORDER BY " + TimeEntryDbHandler.COLUMN_TIME + " DESC LIMIT 1";
                 Cursor c = db.rawQuery(q, null);
 
                 if (c != null && c.getCount() > 0) {
@@ -125,6 +289,16 @@ public class MainActivity extends ActionBarActivity {
 
             }
         }.start();
+        // ATTENTION: This was auto-generated to implement the App Indexing API.
+        // See https://g.co/AppIndexing/AndroidStudio for more information.
+//        Action viewAction = Action.newAction(
+//                Action.TYPE_VIEW, // TODO: choose an action type.
+//                "Main Page", // TODO: Define a title for the content shown.
+//                null,
+//                // TODO: Make sure this auto-generated app URL is correct.
+//                Uri.parse("android-app://com.yugensoft.simplesleepjournal/http/host/path")
+//        );
+//        AppIndex.AppIndexApi.start(client, viewAction);
     }
 
     @Override
@@ -137,6 +311,14 @@ public class MainActivity extends ActionBarActivity {
     }
 
     @Override
+    public void onDestroy() {
+        super.onDestroy();
+        if (mService != null) {
+            unbindService(mServiceConn);
+        }
+    }
+
+    @Override
     public void onSaveInstanceState(Bundle outState) {
         super.onSaveInstanceState(outState);
 
@@ -146,6 +328,8 @@ public class MainActivity extends ActionBarActivity {
     public boolean onCreateOptionsMenu(Menu menu) {
         // Inflate the menu; this adds items to the action bar if it is present.
         getMenuInflater().inflate(R.menu.menu_main, menu);
+        // The remove-ad menu item
+        mRemoveAds = menu.findItem(R.id.action_remove_ads);
         return true;
     }
 
@@ -164,12 +348,81 @@ public class MainActivity extends ActionBarActivity {
             case R.id.action_export:
                 exportData();
                 return true;
+            case R.id.action_remove_ads:
+                purchaseAdRemove();
+                return true;
+            // TODO remove after testing
+//            case R.id.action_cancel_remove_ads:
+//                cancelAdRemove();
+//                return true;
             default:
                 return super.onOptionsItemSelected(item);
         }
 
     }
-    public void openAboutDialog(View view) {openAboutDialog();}
+
+    /**
+     * Function that launches the activity to remove the ads via in-app billing
+     */
+    public void purchaseAdRemove(){
+        try {
+            Bundle buyIntentBundle = mService.getBuyIntent(
+                    3,
+                    getPackageName(),
+                    PRODUCT_ID_AD_REMOVE,
+                    "inapp",
+                    "ts6broa23q0gqy3"  // once-off random string as "developer payload"
+            );
+            PendingIntent pendingIntent = buyIntentBundle.getParcelable("BUY_INTENT");
+            startIntentSenderForResult(
+                    pendingIntent.getIntentSender(),
+                    REQUEST_CODE_BUY_AD_REMOVE,
+                    new Intent(),
+                    Integer.valueOf(0),
+                    Integer.valueOf(0),
+                    Integer.valueOf(0)
+            );
+        } catch (IntentSender.SendIntentException|RemoteException e){
+            return;
+        }
+
+    }
+
+    // TODO remove after testing
+    public void cancelAdRemove(){
+        try {
+            int response = mService.consumePurchase(3, getPackageName(), "inapp:" + getPackageName() + ":android.test.purchased");
+            if (response == 0) {
+                Toast.makeText(MainActivity.this, "Consumed", Toast.LENGTH_SHORT).show();
+                processOwnedAndAvailableItems();
+            } else {
+                Toast.makeText(MainActivity.this, "Error", Toast.LENGTH_SHORT).show();
+            }
+        } catch (RemoteException e){
+
+        }
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        if (requestCode == REQUEST_CODE_BUY_AD_REMOVE) {
+            int responseCode = data.getIntExtra("RESPONSE_CODE", 0);
+            String purchaseData = data.getStringExtra("INAPP_PURCHASE_DATA");
+            String dataSignature = data.getStringExtra("INAPP_DATA_SIGNATURE");
+
+            if (resultCode == RESULT_OK) {
+                Toast.makeText(MainActivity.this, "Remove Ads successfully purchased!", Toast.LENGTH_LONG).show();
+            } else {
+                Toast.makeText(MainActivity.this, "Remove Ads purchase failed.", Toast.LENGTH_LONG).show();
+            }
+            processOwnedAndAvailableItems();
+        }
+    }
+
+    public void openAboutDialog(View view) {
+        openAboutDialog();
+    }
+
     public void openAboutDialog() {
         new AboutFragment().show(getSupportFragmentManager(), "about_dialog");
     }
@@ -187,7 +440,7 @@ public class MainActivity extends ActionBarActivity {
         DateTime startOfCurrentDay = now.withTimeAtStartOfDay();
         DateTime noonOfCurrentDay = startOfCurrentDay.plusHours(12);
         long centerOfDay = noonOfCurrentDay.getMillis();
-        long time =  now.getMillis();
+        long time = now.getMillis();
 
         // Attempt update of wakeup time, otherwise add new
         Uri mNewUri;
@@ -208,7 +461,7 @@ public class MainActivity extends ActionBarActivity {
                 mNewValues,
                 TimeEntryDbHandler.COLUMN_CENTER_OF_DAY + "=? AND " +
                         TimeEntryDbHandler.COLUMN_TYPE + "=? AND " +
-                        TimeEntryDbHandler.COLUMN_DIRECTION + "=?" ,
+                        TimeEntryDbHandler.COLUMN_DIRECTION + "=?",
                 selectionArgs
         );
         if (rowsUpdated == 0) {
@@ -273,7 +526,7 @@ public class MainActivity extends ActionBarActivity {
                 mNewValues,
                 TimeEntryDbHandler.COLUMN_CENTER_OF_DAY + "=? AND " +
                         TimeEntryDbHandler.COLUMN_TYPE + "=? AND " +
-                        TimeEntryDbHandler.COLUMN_DIRECTION + "=?" ,
+                        TimeEntryDbHandler.COLUMN_DIRECTION + "=?",
                 selectionArgs
         );
         if (rowsUpdated == 0) {
@@ -303,13 +556,17 @@ public class MainActivity extends ActionBarActivity {
     public void openRecords(View view) {
         openRecords();
     }
+
     public void openRecords() {
         Intent intent = new Intent(this, RecordsActivity.class);
         startActivity(intent);
     }
 
     // Method to export all data to CSV and share
-    public void exportData(View view) { exportData();}
+    public void exportData(View view) {
+        exportData();
+    }
+
     public void exportData() {
         ExportToCsvTask task = new ExportToCsvTask(MainActivity.this);
         task.execute();
@@ -325,6 +582,7 @@ public class MainActivity extends ActionBarActivity {
     public void openTargets(View view) {
         openTargets();
     }
+
     public void openTargets() {
         Intent intent = new Intent(this, TargetsActivity.class);
         startActivity(intent);
@@ -333,6 +591,7 @@ public class MainActivity extends ActionBarActivity {
     public void openReport(View view) {
         openReport();
     }
+
     public void openReport() {
         Intent intent = new Intent(this, ReportActivity.class);
         startActivity(intent);
@@ -341,15 +600,16 @@ public class MainActivity extends ActionBarActivity {
     public void openHowToPage(View view) {
         openHowToPage();
     }
+
     public void openHowToPage() {
         Intent intent = new Intent(this, HowToActivity.class);
         startActivity(intent);
     }
 
     public void setState(int state) {
-        final TextView txtState = (TextView)findViewById(R.id.current_state);
-        final ImageView imgState = (ImageView)findViewById(R.id.sleep_state_image);
-        final TextView txtLastTime = (TextView)findViewById(R.id.last_time);
+        final TextView txtState = (TextView) findViewById(R.id.current_state);
+        final ImageView imgState = (ImageView) findViewById(R.id.sleep_state_image);
+        final TextView txtLastTime = (TextView) findViewById(R.id.last_time);
         String lastTime;
 
         int previousState = this.state;
@@ -389,7 +649,7 @@ public class MainActivity extends ActionBarActivity {
                         TimeEntryDbHandler.COLUMN_TIME + " DESC"
                 );
                 cursorAsleep.moveToNext();
-                
+
                 lastTime = new HumanReadableConverter(this).RelativeTime(
                         cursorAsleep.getLong(cursorAsleep.getColumnIndexOrThrow(TimeEntryDbHandler.COLUMN_CENTER_OF_DAY)),
                         cursorAsleep.getLong(cursorAsleep.getColumnIndexOrThrow(TimeEntryDbHandler.COLUMN_TIME)),
@@ -409,4 +669,23 @@ public class MainActivity extends ActionBarActivity {
 
     }
 
+    @Override
+    public void onStop() {
+        super.onStop();
+
+        // ATTENTION: This was auto-generated to implement the App Indexing API.
+        // See https://g.co/AppIndexing/AndroidStudio for more information.
+//        Action viewAction = Action.newAction(
+//                Action.TYPE_VIEW, // TODO: choose an action type.
+//                "Main Page", // TODO: Define a title for the content shown.
+//                // TODO: If you have web page content that matches this app activity's content,
+//                // make sure this auto-generated web page URL is correct.
+//                // Otherwise, set the URL to null.
+//                Uri.parse("http://host/path"),
+//                // TODO: Make sure this auto-generated app URL is correct.
+//                Uri.parse("android-app://com.yugensoft.simplesleepjournal/http/host/path")
+//        );
+//        AppIndex.AppIndexApi.end(client, viewAction);
+//        client.disconnect();
+    }
 }
