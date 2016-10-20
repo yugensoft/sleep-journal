@@ -111,9 +111,6 @@
     <string name="late">late</string>
     <string name="early">early</string>
     <string name="title_activity_comparison_bar_test">ComparisonBarTestActivity</string>
-    <string name="remove_ads">Remove Ads</string>
-    <string name="purchased">purchased</string>
-    <string name="cancel_remove_ads">Cancel remove ads</string>
 
 
 </resources>

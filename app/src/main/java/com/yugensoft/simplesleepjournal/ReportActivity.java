@@ -33,7 +33,6 @@ public class ReportActivity extends ActionBarActivity {
     private long sEndOfPeriod = 0;
 
     private Tracker mTracker;
-    private AdView mAdView;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -55,8 +54,22 @@ public class ReportActivity extends ActionBarActivity {
         spinner.setOnItemSelectedListener(SpinnerClickListener);
 
         // Load the ad
-        mAdView = (AdView) findViewById(R.id.adView);
-        AdFunctions.loadAdIntoAdView(mAdView); // TODO only if enabled
+        AdView mAdView = (AdView) findViewById(R.id.adView);
+        AdRequest adRequest = new AdRequest.Builder()
+                .addTestDevice(AdRequest.DEVICE_ID_EMULATOR)
+                .addTestDevice("F961E2E362704F9592CC2F9CC025A1BF")
+                .addKeyword("sleep")
+                .addKeyword("rest")
+                .addKeyword("tiredness")
+                .addKeyword("insomnia")
+                .addKeyword("well-rested")
+                .addKeyword("lethargic")
+                .addKeyword("bedtime")
+                .addKeyword("exhausted")
+                .addKeyword("exhaustion")
+                .addKeyword("bed")
+                .build();
+        mAdView.loadAd(adRequest);
 
         // Obtain the shared Tracker instance.
         SimpleSleepJournalApplication application = (SimpleSleepJournalApplication) getApplication();
