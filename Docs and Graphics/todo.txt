@@ -5,7 +5,7 @@ Possible just wind back to the manual in-app billing coding, not using the "help
 They claim that clearing the cache fixes problems, so the problem could originally have been to do with caching (unpredictable)
 
 In which case, todo:
-- after the ad is purchased, the loaded ad doesnt disappear immediately from main activity
+- after the adremove is purchased, the loaded ad doesnt disappear immediately from main activity
 - it isn't removed from the sleep report -- make this check central somehow
 - doesnt start showing ads again after cancel
 
