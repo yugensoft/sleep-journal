@@ -13,7 +13,6 @@
         android:orderInCategory="100"
         app:showAsAction="never"
         />
-<<<<<<< HEAD
     <item
         android:id="@+id/action_remove_ads"
         android:title="@string/remove_ads"
@@ -22,14 +21,12 @@
         app:showAsAction="never"
         />
     <!-- TODO remove after testing -->
-    <item
-        android:id="@+id/action_cancel_remove_ads"
-        android:title="@string/cancel_remove_ads"
-        android:orderInCategory="100"
-        android:enabled="true"
-        app:showAsAction="never"
-        />
-=======
->>>>>>> parent of e4647c7... manual in-app billing add, which is buggy
+    <!--<item-->
+        <!--android:id="@+id/action_cancel_remove_ads"-->
+        <!--android:title="@string/cancel_remove_ads"-->
+        <!--android:orderInCategory="100"-->
+        <!--android:enabled="true"-->
+        <!--app:showAsAction="never"-->
+        <!--/>-->
 
 </menu>

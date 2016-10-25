@@ -1,13 +1,21 @@
 package com.yugensoft.simplesleepjournal;
 
+import android.app.PendingIntent;
+import android.content.ComponentName;
 import android.content.ContentValues;
+import android.content.Context;
 import android.content.Intent;
+import android.content.IntentSender;
+import android.content.ServiceConnection;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.net.Uri;
 import android.os.Handler;
+import android.os.IBinder;
+import android.os.RemoteException;
 import android.support.v7.app.ActionBarActivity;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -15,10 +23,7 @@ import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
-<<<<<<< HEAD
-=======
-import com.google.android.gms.ads.AdRequest;
->>>>>>> parent of e4647c7... manual in-app billing add, which is buggy
+import com.android.vending.billing.IInAppBillingService;
 import com.google.android.gms.ads.AdView;
 import com.google.android.gms.analytics.HitBuilders;
 import com.google.android.gms.analytics.Tracker;
@@ -26,19 +31,16 @@ import com.yugensoft.simplesleepjournal.contentprovider.TimeEntryContentProvider
 import com.yugensoft.simplesleepjournal.database.TimeEntry;
 import com.yugensoft.simplesleepjournal.database.TimeEntryDbHandler;
 import com.squareup.picasso.Picasso;
-import com.yugensoft.simplesleepjournal.util.IabHelper;
-import com.yugensoft.simplesleepjournal.util.IabResult;
-import com.yugensoft.simplesleepjournal.util.Inventory;
-import com.yugensoft.simplesleepjournal.util.Purchase;
-import com.yugensoft.simplesleepjournal.util.SkuDetails;
 
 import org.joda.time.DateTime;
-<<<<<<< HEAD
-=======
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import java.util.ArrayList;
 
 
-// General Todos:
->>>>>>> parent of e4647c7... manual in-app billing add, which is buggy
+// General Todos (v1.2):
+// todo: fix random "premium monthly" error
 
 // Next Revision Notes:
 // Add graphical time bars on current day + add/modify records + in records list
@@ -52,29 +54,37 @@ public class MainActivity extends ActionBarActivity {
 
     private int state = STATE_UNKNOWN;
 
-<<<<<<< HEAD
     // other constants
     public final int REQUEST_CODE_BUY_AD_REMOVE = 1001;
-//    public final String SKU_AD_REMOVE = "ad_remove";
-    public final String SKU_AD_REMOVE = "android.test.purchased";
+    public final String PRODUCT_ID_AD_REMOVE = "ad_remove"; //TODO
+//    public final String PRODUCT_ID_AD_REMOVE = "android.test.purchased";
 
-    // Debug tag, for logging
-    static final String TAG = "in-app billing";
-
-    // Tracking and ads
     private Tracker mTracker;
     private AdView mAdView;
+    private MenuItem mRemoveAds;
 
-    // In-app billing related
-    private IabHelper mHelper;
-    private MenuItem mRemoveAdsMenuItem;
-    private boolean mIsAdRemovePurchased;
-    private Purchase mAdRemovePurchase;
-    private String mAdRemovePrice;
 
-=======
-    private Tracker mTracker;
->>>>>>> parent of e4647c7... manual in-app billing add, which is buggy
+    /**
+     * This section is related to the in-app billing
+     */
+
+    private IInAppBillingService mService;
+    ServiceConnection mServiceConn = new ServiceConnection() {
+        @Override
+        public void onServiceDisconnected(ComponentName name) {
+            mService = null;
+        }
+
+        @Override
+        public void onServiceConnected(ComponentName name, IBinder service) {
+            mService = IInAppBillingService.Stub.asInterface(service);
+            Log.d("in-app billing", "onServiceConnected ");
+
+            // Check if user owns any in-app billing items and perform associated tasks
+            processOwnedAndAvailableItems();
+        }
+    };
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -86,33 +96,137 @@ public class MainActivity extends ActionBarActivity {
         Picasso.with(MainActivity.this).load(R.drawable.sun).fetch();
         Picasso.with(MainActivity.this).load(R.drawable.unknown).fetch();
 
-        AdView mAdView = (AdView) findViewById(R.id.adView);
-        AdRequest adRequest = new AdRequest.Builder()
-                .addTestDevice(AdRequest.DEVICE_ID_EMULATOR)
-                .addTestDevice("F961E2E362704F9592CC2F9CC025A1BF")
-                .addKeyword("sleep")
-                .addKeyword("rest")
-                .addKeyword("tiredness")
-                .addKeyword("insomnia")
-                .addKeyword("well-rested")
-                .addKeyword("lethargic")
-                .addKeyword("bedtime")
-                .addKeyword("exhausted")
-                .addKeyword("exhaustion")
-                .addKeyword("bed")
-                .build();
-        mAdView.loadAd(adRequest);
+        // The ad
+        mAdView = (AdView) findViewById(R.id.adView);
 
         // Obtain the shared Tracker instance.
         SimpleSleepJournalApplication application = (SimpleSleepJournalApplication) getApplication();
         mTracker = application.getDefaultTracker();
-<<<<<<< HEAD
 
+        /*
+        ** This part is related to in-ap billing
+         */
+
+        Intent serviceIntent = new Intent("com.android.vending.billing.InAppBillingService.BIND");
+        serviceIntent.setPackage("com.android.vending");
+        bindService(serviceIntent, mServiceConn, Context.BIND_AUTO_CREATE);
+
+        //-- In-app billing
     }
 
-=======
+    /**
+     * Function to check for any owned and available in-app billing items, and perform associated tasks
+     * If the ad-remove is owned, removes the option to buy it, and disables the ad
+     * Otherwise, gets the price and enables buying menu item
+     *
+     * Notes:
+     * design is that ads will only ever be displayed upon confirmed lack of ad_remove purchase
+     */
+    private void processOwnedAndAvailableItems() {
+        final Handler handler = new Handler();
+        new Thread() {
+            @Override
+            public void run() {
+
+                final String f_adRemovePrice;
+                final boolean f_isAdRemovePurchased;
+
+                // Owned items
+                try {
+                    boolean isAdRemovePurchased = false;
+                    Bundle ownedItems = mService.getPurchases(3, getPackageName(), "inapp", null);
+                    if (ownedItems.getInt("RESPONSE_CODE") == 0) {
+                        ArrayList<String> ownedSkus = ownedItems.getStringArrayList("INAPP_PURCHASE_ITEM_LIST");
+                        ArrayList<String> purchaseDataList = ownedItems.getStringArrayList("INAPP_PURCHASE_DATA_LIST");
+                        ArrayList<String> signatureList = ownedItems.getStringArrayList("INAPP_DATA_SIGNATURE_LIST");
+                        String continuationToken = ownedItems.getString("INAPP_CONTINUATION_TOKEN"); // Not used, only have single-digit number of items
+
+                        for (int i = 0; i < purchaseDataList.size(); ++i) {
+                            String purchaseData = purchaseDataList.get(i);
+                            String signature = signatureList.get(i);
+                            String sku = ownedSkus.get(i);
+
+                            // do something with this purchase information
+                            // e.g. display the updated list of products owned by user
+                            Log.d("in-app billing", "owned item: " + purchaseData + ", " + signature + ", " + sku);
+
+                            if(sku.equals(PRODUCT_ID_AD_REMOVE)){
+                                isAdRemovePurchased = true;
+                            }
+                        }
+                    }
+                    f_isAdRemovePurchased = isAdRemovePurchased;
+                } catch(RemoteException e) {
+                    // Problem of some sort, abandon and leave ad unused
+                    Log.d("in-app billing", "exception");
+                    return;
+                }
+
+                // Available items
+                ArrayList<String> skuList = new ArrayList<String> ();
+                skuList.add(PRODUCT_ID_AD_REMOVE);
+                Bundle querySkus = new Bundle();
+                querySkus.putStringArrayList("ITEM_ID_LIST", skuList);
+
+                try {
+                    String adRemovePrice = null;
+                    Bundle skuDetails = mService.getSkuDetails(3, getPackageName(), "inapp", querySkus);
+                    if (skuDetails.getInt("RESPONSE_CODE") == 0) {
+                        ArrayList<String> responseList = skuDetails.getStringArrayList("DETAILS_LIST");
+
+                        for (String thisResponse : responseList) {
+                            JSONObject object = new JSONObject(thisResponse);
+                            String sku = object.getString("productId");
+                            String price = object.getString("price");
+                            Log.d("in-app billing", "available item: " + sku + ", " + price);
+
+                            if (sku.equals(PRODUCT_ID_AD_REMOVE)) {
+                                adRemovePrice = price;
+                                Log.d("in-app billing", "adRemove price: " + adRemovePrice);
+                                break;
+                            }
+                        }
+                    }
+                    f_adRemovePrice = adRemovePrice;
+                } catch(RemoteException|JSONException e) {
+                    // Problem of some sort, abandon and leave ad unused
+                    Log.d("in-app billing", "exception");
+                    return;
+                }
+
+                // Wait for the options menu to be constructed
+                while(mRemoveAds == null){
+                    Log.d("in-app billing", "no remove_ads menu item");
+                    try {
+                        Thread.sleep(100);
+                    } catch(InterruptedException e){
+                        Log.d("in-app billing", "thread sleep interrupted ");
+                        return;
+                    }
+                }
+
+                // Process and apply results
+                handler.post(new Runnable() {
+                    public void run() {
+                        // Check if ad_remove is purchased
+                        if(!f_isAdRemovePurchased){
+                            AdFunctions.loadAdIntoAdView(mAdView);
+                            // Check if we have a price for ad_remove
+                            if(f_adRemovePrice != null){
+                                mRemoveAds.setTitle(getString(R.string.remove_ads) + " (" + f_adRemovePrice + ")");
+                                mRemoveAds.setEnabled(true);
+                            } else {
+                                mRemoveAds.setEnabled(false);
+                            }
+                        } else {
+                            mRemoveAds.setTitle(getString(R.string.remove_ads) + " (" + getString(R.string.purchased) + ")");
+                            mRemoveAds.setEnabled(false);
+                        }
+                    }
+                });
+            }
+        }.start(); //--thread
     }
->>>>>>> parent of e4647c7... manual in-app billing add, which is buggy
 
     @Override
     protected void onStart() {
@@ -127,9 +241,9 @@ public class MainActivity extends ActionBarActivity {
                 long time24hoursAgo = new DateTime().minusHours(24).getMillis();
                 // Get latest time entry that is more recent than 24 hours ago
                 String q = "SELECT * FROM " + TimeEntryDbHandler.TABLE_TIME_ENTRIES + " " +
-                           "WHERE " + TimeEntryDbHandler.COLUMN_TYPE + "='" + TimeEntry.TimeEntryType.TIME_RECORD.name() + "' " +
-                           "AND " + TimeEntryDbHandler.COLUMN_TIME + " > " + String.valueOf(time24hoursAgo) + " " +
-                           "ORDER BY " + TimeEntryDbHandler.COLUMN_TIME + " DESC LIMIT 1";
+                        "WHERE " + TimeEntryDbHandler.COLUMN_TYPE + "='" + TimeEntry.TimeEntryType.TIME_RECORD.name() + "' " +
+                        "AND " + TimeEntryDbHandler.COLUMN_TIME + " > " + String.valueOf(time24hoursAgo) + " " +
+                        "ORDER BY " + TimeEntryDbHandler.COLUMN_TIME + " DESC LIMIT 1";
                 Cursor c = db.rawQuery(q, null);
 
                 if (c != null && c.getCount() > 0) {
@@ -164,10 +278,7 @@ public class MainActivity extends ActionBarActivity {
 
             }
         }.start();
-<<<<<<< HEAD
 
-=======
->>>>>>> parent of e4647c7... manual in-app billing add, which is buggy
     }
 
     @Override
@@ -180,21 +291,14 @@ public class MainActivity extends ActionBarActivity {
     }
 
     @Override
-<<<<<<< HEAD
     public void onDestroy() {
         super.onDestroy();
-
-        // in-app billing
-        Log.d(TAG, "Destroying helper.");
-        if (mHelper != null) {
-            mHelper.disposeWhenFinished();
-            mHelper = null;
+        if (mService != null) {
+            unbindService(mServiceConn);
         }
     }
 
     @Override
-=======
->>>>>>> parent of e4647c7... manual in-app billing add, which is buggy
     public void onSaveInstanceState(Bundle outState) {
         super.onSaveInstanceState(outState);
 
@@ -204,157 +308,9 @@ public class MainActivity extends ActionBarActivity {
     public boolean onCreateOptionsMenu(Menu menu) {
         // Inflate the menu; this adds items to the action bar if it is present.
         getMenuInflater().inflate(R.menu.menu_main, menu);
-<<<<<<< HEAD
         // The remove-ad menu item
-        mRemoveAdsMenuItem = menu.findItem(R.id.action_remove_ads);
-
-        setupInAppBilling();
-
+        mRemoveAds = menu.findItem(R.id.action_remove_ads);
         return true;
-    }
-
-    /**
-     * Start up the in-app billing system
-     */
-    public void setupInAppBilling(){
-        // App public key
-        String base64EncodedPublicKey = "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAlSr2iT8DA5dsWwd6dBVbrWszGt+vNiYEinMpnkcJs0C79FqcnzGuQcMnZegb50o0smC7bONAHwpTP56YSdZ4rIuPtw2WBpqSzOTtrU+S93OH6A7uIDW1hd8LYuD0b16qbuqE3hHOF9QYw96KnPqK8PPLrat2BEx8VYREuQ+l88J655rH+ipzYrjjNqx8bM/yTTAr1BnBs9OBjJNaQ3Hc6BNFlu7jbTeSBVJ0C/GA49crYwE4ELTaC2SCjAScDe0675211ML8oyd3jQmswtlx6RKGbC6/cOCo/c3ge7a2mz59kMI9Ec/D9OowR2LNbz1ERnoXyyolBv4wYu3B0zgxawIDAQAB";
-
-        // Create the helper, passing it our context and the public key to verify signatures with
-        Log.d(TAG, "Creating IAB helper.");
-        mHelper = new IabHelper(this, base64EncodedPublicKey);
-
-        // enable debug logging (for a production application, you should set this to false). todo
-        mHelper.enableDebugLogging(true);
-
-        // Start setup. This is asynchronous and the specified listener
-        // will be called once setup completes.
-        Log.d(TAG, "Starting setup.");
-        mHelper.startSetup(new IabHelper.OnIabSetupFinishedListener() {
-            public void onIabSetupFinished(IabResult result) {
-                Log.d(TAG, "Setup finished.");
-
-                if (!result.isSuccess()) {
-                    // Oh noes, there was a problem.
-                    complain("Problem setting up in-app billing: " + result);
-                    return;
-                }
-
-                // Have we been disposed of in the meantime? If so, quit.
-                if (mHelper == null) return;
-
-                // IAB is fully set up. Now, let's get an inventory of stuff we own.
-                Log.d(TAG, "Setup successful. Querying inventory.");
-                try {
-                    mHelper.queryInventoryAsync(mGotInventoryListener);
-                } catch (IabHelper.IabAsyncInProgressException e) {
-                    complain("Error querying inventory. Another async operation in progress.");
-                }
-            }
-        });
-
-    }
-    // Listener that's called when we finish querying the items and subscriptions we own
-    IabHelper.QueryInventoryFinishedListener mGotInventoryListener = new IabHelper.QueryInventoryFinishedListener() {
-        public void onQueryInventoryFinished(IabResult result, Inventory inventory) {
-            Log.d(TAG, "Query inventory finished.");
-
-            // Have we been disposed of in the meantime? If so, quit.
-            if (mHelper == null) return;
-
-            // Is it a failure?
-            if (result.isFailure()) {
-                complain("Failed to query inventory: " + result);
-                return;
-            }
-
-
-            Log.d(TAG, "Query inventory was successful: " + result.getMessage());
-
-            // Do we have the remove-ads upgrade?
-            Purchase adRemove = inventory.getPurchase(SKU_AD_REMOVE);
-            mIsAdRemovePurchased = (adRemove != null && verifyDeveloperPayload(adRemove));
-            Log.d(TAG, "User has " + (mIsAdRemovePurchased ? "NO ADS" : "ADS"));
-            if(mIsAdRemovePurchased) {
-                mAdRemovePurchase = adRemove;
-            } else {
-                // If we don't, get the price
-                SkuDetails adRemoveDetails = inventory.getSkuDetails(SKU_AD_REMOVE);
-                if (adRemoveDetails != null) {
-                    mAdRemovePrice = adRemoveDetails.getPrice();
-                    Log.d(TAG, "Price is: " + mAdRemovePrice);
-                } else {
-                    complain("Couldn't get ad-remove price: " + inventory.mSkuMap.toString());
-
-                }
-            }
-
-            updateUi();
-            Log.d(TAG, "Initial inventory query finished; enabling main UI.");
-        }
-    };
-    public void updateUi(){
-        if(!mIsAdRemovePurchased){
-            AdFunctions.loadAdIntoAdView(mAdView);
-            // Check if we have a price for ad_remove
-            if(mAdRemovePrice != null){
-                mRemoveAdsMenuItem.setTitle(getString(R.string.remove_ads) + " (" + mAdRemovePrice + ")");
-                mRemoveAdsMenuItem.setEnabled(true);
-            } else {
-                mRemoveAdsMenuItem.setEnabled(false);
-            }
-        } else {
-            mRemoveAdsMenuItem.setTitle(getString(R.string.remove_ads) + " (" + getString(R.string.purchased) + ")");
-            mRemoveAdsMenuItem.setEnabled(false);
-        }
-    }
-    /** Verifies the developer payload of a purchase. */
-    boolean verifyDeveloperPayload(Purchase p) {
-        String payload = p.getDeveloperPayload();
-
-        //todo verify
-
-=======
->>>>>>> parent of e4647c7... manual in-app billing add, which is buggy
-        return true;
-    }
-
-    // Callback for when a purchase is finished
-    IabHelper.OnIabPurchaseFinishedListener mPurchaseFinishedListener = new IabHelper.OnIabPurchaseFinishedListener() {
-        public void onIabPurchaseFinished(IabResult result, Purchase purchase) {
-            Log.d(TAG, "Purchase finished: " + result + ", purchase: " + purchase);
-
-            // if we were disposed of in the meantime, quit.
-            if (mHelper == null) return;
-
-            if (result.isFailure()) {
-                complain("Error purchasing: " + result);
-                return;
-            }
-            if (!verifyDeveloperPayload(purchase)) {
-                complain("Error purchasing. Authenticity verification failed.");
-                return;
-            }
-
-            Log.d(TAG, "Purchase successful.");
-
-            if (purchase.getSku().equals(SKU_AD_REMOVE)) {
-                // bought the ad-remove upgrade!
-                Log.d(TAG, "Purchase is premium upgrade. Congratulating user.");
-                alert("Ad Remove Purchased!!");
-                mIsAdRemovePurchased = true;
-                mAdRemovePurchase = purchase;
-                updateUi();
-            }
-        }
-    };
-
-
-    public void complain(String s){
-        Log.e(TAG, s);
-    }
-    public void alert(String s){
-        Toast.makeText(MainActivity.this, s, Toast.LENGTH_SHORT).show();
     }
 
     @Override
@@ -372,79 +328,81 @@ public class MainActivity extends ActionBarActivity {
             case R.id.action_export:
                 exportData();
                 return true;
-<<<<<<< HEAD
             case R.id.action_remove_ads:
                 purchaseAdRemove();
                 return true;
             // TODO remove after testing
-            case R.id.action_cancel_remove_ads:
-                cancelAdRemove();
-                return true;
-=======
->>>>>>> parent of e4647c7... manual in-app billing add, which is buggy
+//            case R.id.action_cancel_remove_ads:
+//                cancelAdRemove();
+//                return true;
             default:
                 return super.onOptionsItemSelected(item);
         }
 
     }
-<<<<<<< HEAD
 
     /**
-     * Function that starts a purchase to remove the ads via in-app billing
+     * Function that launches the activity to remove the ads via in-app billing
      */
     public void purchaseAdRemove(){
-        Log.d(TAG, "Upgrade button clicked; launching purchase flow for upgrade.");
-
-        String payload = "";
-
         try {
-            mHelper.launchPurchaseFlow(this, SKU_AD_REMOVE, REQUEST_CODE_BUY_AD_REMOVE, mPurchaseFinishedListener, payload);
-        } catch (IabHelper.IabAsyncInProgressException e) {
-            complain("Error launching purchase flow. Another async operation in progress.");
+            Bundle buyIntentBundle = mService.getBuyIntent(
+                    3,
+                    getPackageName(),
+                    PRODUCT_ID_AD_REMOVE,
+                    "inapp",
+                    "ts6broa23q0gqy3"  // once-off random string as "developer payload"
+            );
+            PendingIntent pendingIntent = buyIntentBundle.getParcelable("BUY_INTENT");
+            startIntentSenderForResult(
+                    pendingIntent.getIntentSender(),
+                    REQUEST_CODE_BUY_AD_REMOVE,
+                    new Intent(),
+                    Integer.valueOf(0),
+                    Integer.valueOf(0),
+                    Integer.valueOf(0)
+            );
+        } catch (IntentSender.SendIntentException|RemoteException e){
+            return;
         }
-    }
 
-    public void cancelAdRemove(){
-        if(!mIsAdRemovePurchased) return;
-
-        // Consume the ad-remove, for testing purposes
-        Log.d(TAG, "Consuming ad remove.");
-        try {
-            mHelper.consumeAsync(mAdRemovePurchase, mConsumeFinishedListener);
-        } catch (IabHelper.IabAsyncInProgressException e) {
-            complain("Error consuming ad remove. Another async operation in progress.");
-        }
-        return;
     }
 
     // TODO remove after testing
-    // Called when consumption is complete
-    IabHelper.OnConsumeFinishedListener mConsumeFinishedListener = new IabHelper.OnConsumeFinishedListener() {
-        public void onConsumeFinished(Purchase purchase, IabResult result) {
-            Log.d(TAG, "Consumption finished. Purchase: " + purchase + ", result: " + result);
-
-            // if we were disposed of in the meantime, quit.
-            if (mHelper == null) return;
-
-            if (result.isSuccess()) {
-                // successfully consumed, so we apply the effects of the item
-                Log.d(TAG, "Consumption successful. ");
+    public void cancelAdRemove(){
+        try {
+            int response = mService.consumePurchase(3, getPackageName(), "inapp:" + getPackageName() + ":android.test.purchased");
+            if (response == 0) {
+                Toast.makeText(MainActivity.this, "Consumed", Toast.LENGTH_SHORT).show();
+                processOwnedAndAvailableItems();
+            } else {
+                Toast.makeText(MainActivity.this, "Error", Toast.LENGTH_SHORT).show();
             }
-            else {
-                complain("Error while consuming: " + result);
-            }
-            updateUi();
-            Log.d(TAG, "End consumption flow.");
+        } catch (RemoteException e){
+
         }
-    };
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        if (requestCode == REQUEST_CODE_BUY_AD_REMOVE) {
+            int responseCode = data.getIntExtra("RESPONSE_CODE", 0);
+            String purchaseData = data.getStringExtra("INAPP_PURCHASE_DATA");
+            String dataSignature = data.getStringExtra("INAPP_DATA_SIGNATURE");
+
+            if (resultCode == RESULT_OK) {
+                Toast.makeText(MainActivity.this, "Remove Ads successfully purchased!", Toast.LENGTH_LONG).show();
+            } else {
+                Toast.makeText(MainActivity.this, "Remove Ads purchase failed.", Toast.LENGTH_LONG).show();
+            }
+            processOwnedAndAvailableItems();
+        }
+    }
 
     public void openAboutDialog(View view) {
         openAboutDialog();
     }
 
-=======
-    public void openAboutDialog(View view) {openAboutDialog();}
->>>>>>> parent of e4647c7... manual in-app billing add, which is buggy
     public void openAboutDialog() {
         new AboutFragment().show(getSupportFragmentManager(), "about_dialog");
     }
@@ -462,7 +420,7 @@ public class MainActivity extends ActionBarActivity {
         DateTime startOfCurrentDay = now.withTimeAtStartOfDay();
         DateTime noonOfCurrentDay = startOfCurrentDay.plusHours(12);
         long centerOfDay = noonOfCurrentDay.getMillis();
-        long time =  now.getMillis();
+        long time = now.getMillis();
 
         // Attempt update of wakeup time, otherwise add new
         Uri mNewUri;
@@ -483,7 +441,7 @@ public class MainActivity extends ActionBarActivity {
                 mNewValues,
                 TimeEntryDbHandler.COLUMN_CENTER_OF_DAY + "=? AND " +
                         TimeEntryDbHandler.COLUMN_TYPE + "=? AND " +
-                        TimeEntryDbHandler.COLUMN_DIRECTION + "=?" ,
+                        TimeEntryDbHandler.COLUMN_DIRECTION + "=?",
                 selectionArgs
         );
         if (rowsUpdated == 0) {
@@ -548,7 +506,7 @@ public class MainActivity extends ActionBarActivity {
                 mNewValues,
                 TimeEntryDbHandler.COLUMN_CENTER_OF_DAY + "=? AND " +
                         TimeEntryDbHandler.COLUMN_TYPE + "=? AND " +
-                        TimeEntryDbHandler.COLUMN_DIRECTION + "=?" ,
+                        TimeEntryDbHandler.COLUMN_DIRECTION + "=?",
                 selectionArgs
         );
         if (rowsUpdated == 0) {
@@ -578,13 +536,17 @@ public class MainActivity extends ActionBarActivity {
     public void openRecords(View view) {
         openRecords();
     }
+
     public void openRecords() {
         Intent intent = new Intent(this, RecordsActivity.class);
         startActivity(intent);
     }
 
     // Method to export all data to CSV and share
-    public void exportData(View view) { exportData();}
+    public void exportData(View view) {
+        exportData();
+    }
+
     public void exportData() {
         ExportToCsvTask task = new ExportToCsvTask(MainActivity.this);
         task.execute();
@@ -600,6 +562,7 @@ public class MainActivity extends ActionBarActivity {
     public void openTargets(View view) {
         openTargets();
     }
+
     public void openTargets() {
         Intent intent = new Intent(this, TargetsActivity.class);
         startActivity(intent);
@@ -608,6 +571,7 @@ public class MainActivity extends ActionBarActivity {
     public void openReport(View view) {
         openReport();
     }
+
     public void openReport() {
         Intent intent = new Intent(this, ReportActivity.class);
         startActivity(intent);
@@ -616,15 +580,16 @@ public class MainActivity extends ActionBarActivity {
     public void openHowToPage(View view) {
         openHowToPage();
     }
+
     public void openHowToPage() {
         Intent intent = new Intent(this, HowToActivity.class);
         startActivity(intent);
     }
 
     public void setState(int state) {
-        final TextView txtState = (TextView)findViewById(R.id.current_state);
-        final ImageView imgState = (ImageView)findViewById(R.id.sleep_state_image);
-        final TextView txtLastTime = (TextView)findViewById(R.id.last_time);
+        final TextView txtState = (TextView) findViewById(R.id.current_state);
+        final ImageView imgState = (ImageView) findViewById(R.id.sleep_state_image);
+        final TextView txtLastTime = (TextView) findViewById(R.id.last_time);
         String lastTime;
 
         int previousState = this.state;
@@ -664,7 +629,7 @@ public class MainActivity extends ActionBarActivity {
                         TimeEntryDbHandler.COLUMN_TIME + " DESC"
                 );
                 cursorAsleep.moveToNext();
-                
+
                 lastTime = new HumanReadableConverter(this).RelativeTime(
                         cursorAsleep.getLong(cursorAsleep.getColumnIndexOrThrow(TimeEntryDbHandler.COLUMN_CENTER_OF_DAY)),
                         cursorAsleep.getLong(cursorAsleep.getColumnIndexOrThrow(TimeEntryDbHandler.COLUMN_TIME)),
@@ -684,12 +649,9 @@ public class MainActivity extends ActionBarActivity {
 
     }
 
-<<<<<<< HEAD
     @Override
     public void onStop() {
         super.onStop();
 
     }
-=======
->>>>>>> parent of e4647c7... manual in-app billing add, which is buggy
 }
