@@ -2,11 +2,15 @@
 
     <!-- Base application theme. -->
     <style name="AppTheme" parent="Base.Theme.AppCompat.Light.DarkActionBar">
-    <!-- <style name="AppTheme" parent="@android:style/Theme.Holo"> -->
         <!-- Customize your theme here. -->
-
+        <item name="buttonStyle">@style/CustomButtonStyle</item>
     </style>
 
+    <style name="CustomButtonStyle" parent="Widget.AppCompat.Button">
+        <item name="android:background">@color/button_color</item>
+    </style>
+
+    <!-- Others -->
     <style name="Divider">
         <item name="android:layout_width">match_parent</item>
         <item name="android:layout_height">1dp</item>
@@ -21,6 +25,12 @@
         <item name="android:layout_width">150dp</item>
         <item name="android:layout_height">80dp</item>
         <item name="android:textSize">20sp</item>
+        <item name="android:drawablePadding">-10dp</item>
+        <item name="android:layout_marginBottom">5dp</item>
+        <item name="android:gravity">center</item>
+        <item name="android:foregroundGravity">center</item>
+        <item name="android:paddingTop">10dp</item>
     </style>
 
+    <color name="button_color">#57d8ff</color>
 </resources>

@@ -115,6 +115,10 @@ public class HumanReadableConverter {
         DateTimeFormatter fmt = DateTimeFormat.forPattern("dd/MM/YY");
         return fmt.print(time);
     }
+    public String ConvertDate(long time, String pattern){
+        DateTimeFormatter fmt = DateTimeFormat.forPattern(pattern);
+        return fmt.print(time);
+    }
 
     // Method to return human readable date from given year-month-day
     public String ConvertDate(int year, int month, int day) {

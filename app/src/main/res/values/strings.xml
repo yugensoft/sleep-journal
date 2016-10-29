@@ -79,7 +79,7 @@
     <string name="delete_date_label">Date:</string>
     <string name="delete_time_label">Time:</string>
     <string name="add_record">Add new</string>
-    <string name="activity_records_title">Sleep records:</string>
+    <string name="activity_records_title">Sleep records</string>
     <string name="original_label">Original:</string>
     <string name="add_sleep_record_dialog_title">Add sleep record</string>
     <string name="noon_note">Note: Bedtimes before noon are placed on the next day</string>
@@ -114,6 +114,21 @@
     <string name="remove_ads">Remove Ads</string>
     <string name="purchased">purchased</string>
     <string name="cancel_remove_ads">Cancel remove ads</string>
+    <string name="date">Date</string>
+    <string name="time">Time</string>
+    <string name="bracket_none">(none)</string>
+    <string name="all">all</string>
+    <string name="for_str">for</string>
+    <string name="from">from</string>
+    <string name="to">to</string>
+    <string name="list_all">List all</string>
+    <string name="add_new">Add new</string>
+    <string name="fail_future_time">Failed, future times cannot be used</string>
 
+    <!-- Plurals -->
+    <plurals name="blankDays">
+        <item quantity="one">(%d empty day)</item>
+        <item quantity="other">(%d empty days)</item>
+    </plurals>
 
 </resources>

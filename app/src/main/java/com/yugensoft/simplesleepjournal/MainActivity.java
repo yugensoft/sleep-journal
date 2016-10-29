@@ -39,12 +39,6 @@ import org.json.JSONObject;
 import java.util.ArrayList;
 
 
-// General Todos (v1.2):
-// todo: fix random "premium monthly" error
-
-// Next Revision Notes:
-// Add graphical time bars on current day + add/modify records + in records list
-// Add records month splitters
 public class MainActivity extends ActionBarActivity {
 
     // states
@@ -56,17 +50,21 @@ public class MainActivity extends ActionBarActivity {
 
     // other constants
     public final int REQUEST_CODE_BUY_AD_REMOVE = 1001;
-    public final String PRODUCT_ID_AD_REMOVE = "ad_remove"; //TODO
-//    public final String PRODUCT_ID_AD_REMOVE = "android.test.purchased";
+    public final String PRODUCT_ID_AD_REMOVE = "ad_remove";
+    // debugging
+    public final static boolean DEBUG_LOGS = false;
 
     private Tracker mTracker;
     private AdView mAdView;
     private MenuItem mRemoveAds;
-
+    private boolean mAdRemovePurchased;
 
     /**
      * This section is related to the in-app billing
      */
+    private final int PURCHASE_STATUS_PURCHASED = 0;
+    private final int PURCHASE_STATUS_CANCELED = 1;
+    private final int PURCHASE_STATUS_REFUNDED = 2;
 
     private IInAppBillingService mService;
     ServiceConnection mServiceConn = new ServiceConnection() {
@@ -78,7 +76,7 @@ public class MainActivity extends ActionBarActivity {
         @Override
         public void onServiceConnected(ComponentName name, IBinder service) {
             mService = IInAppBillingService.Stub.asInterface(service);
-            Log.d("in-app billing", "onServiceConnected ");
+            if (MainActivity.DEBUG_LOGS) Log.d("in-app billing", "onServiceConnected ");
 
             // Check if user owns any in-app billing items and perform associated tasks
             processOwnedAndAvailableItems();
@@ -112,6 +110,7 @@ public class MainActivity extends ActionBarActivity {
         bindService(serviceIntent, mServiceConn, Context.BIND_AUTO_CREATE);
 
         //-- In-app billing
+
     }
 
     /**
@@ -148,17 +147,21 @@ public class MainActivity extends ActionBarActivity {
 
                             // do something with this purchase information
                             // e.g. display the updated list of products owned by user
-                            Log.d("in-app billing", "owned item: " + purchaseData + ", " + signature + ", " + sku);
+                            if (MainActivity.DEBUG_LOGS) Log.d("in-app billing", "owned item: " + purchaseData + ", " + signature + ", " + sku);
 
-                            if(sku.equals(PRODUCT_ID_AD_REMOVE)){
+                            // determine the purchase status, as canceled/refunded ad_remove shouldn't apply
+                            JSONObject jsonObject = new JSONObject(purchaseData);
+                            int purchaseStatus = jsonObject.getInt("purchaseState");
+
+                            if(sku.equals(PRODUCT_ID_AD_REMOVE) && purchaseStatus == PURCHASE_STATUS_PURCHASED){
                                 isAdRemovePurchased = true;
                             }
                         }
                     }
                     f_isAdRemovePurchased = isAdRemovePurchased;
-                } catch(RemoteException e) {
+                } catch(RemoteException|JSONException e ) {
                     // Problem of some sort, abandon and leave ad unused
-                    Log.d("in-app billing", "exception");
+                    if (MainActivity.DEBUG_LOGS) Log.d("in-app billing", "exception");
                     return;
                 }
 
@@ -178,11 +181,11 @@ public class MainActivity extends ActionBarActivity {
                             JSONObject object = new JSONObject(thisResponse);
                             String sku = object.getString("productId");
                             String price = object.getString("price");
-                            Log.d("in-app billing", "available item: " + sku + ", " + price);
+                            if (MainActivity.DEBUG_LOGS) Log.d("in-app billing", "available item: " + sku + ", " + price);
 
                             if (sku.equals(PRODUCT_ID_AD_REMOVE)) {
                                 adRemovePrice = price;
-                                Log.d("in-app billing", "adRemove price: " + adRemovePrice);
+                                if (MainActivity.DEBUG_LOGS) Log.d("in-app billing", "adRemove price: " + adRemovePrice);
                                 break;
                             }
                         }
@@ -190,17 +193,17 @@ public class MainActivity extends ActionBarActivity {
                     f_adRemovePrice = adRemovePrice;
                 } catch(RemoteException|JSONException e) {
                     // Problem of some sort, abandon and leave ad unused
-                    Log.d("in-app billing", "exception");
+                    if (MainActivity.DEBUG_LOGS) Log.d("in-app billing", "exception");
                     return;
                 }
 
                 // Wait for the options menu to be constructed
                 while(mRemoveAds == null){
-                    Log.d("in-app billing", "no remove_ads menu item");
+                    if (MainActivity.DEBUG_LOGS) Log.d("in-app billing", "no remove_ads menu item");
                     try {
                         Thread.sleep(100);
                     } catch(InterruptedException e){
-                        Log.d("in-app billing", "thread sleep interrupted ");
+                        if (MainActivity.DEBUG_LOGS) Log.d("in-app billing", "thread sleep interrupted ");
                         return;
                     }
                 }
@@ -209,7 +212,10 @@ public class MainActivity extends ActionBarActivity {
                 handler.post(new Runnable() {
                     public void run() {
                         // Check if ad_remove is purchased
+                        mAdRemovePurchased = f_isAdRemovePurchased;
+                        if (MainActivity.DEBUG_LOGS) Log.d("in-app billing", "ad-remove purchase is: "+String.valueOf(mAdRemovePurchased));
                         if(!f_isAdRemovePurchased){
+                            // Show ads
                             AdFunctions.loadAdIntoAdView(mAdView);
                             // Check if we have a price for ad_remove
                             if(f_adRemovePrice != null){
@@ -219,8 +225,10 @@ public class MainActivity extends ActionBarActivity {
                                 mRemoveAds.setEnabled(false);
                             }
                         } else {
+                            // Don't show ads
                             mRemoveAds.setTitle(getString(R.string.remove_ads) + " (" + getString(R.string.purchased) + ")");
                             mRemoveAds.setEnabled(false);
+                            mAdView.destroy();
                         }
                     }
                 });
@@ -538,8 +546,7 @@ public class MainActivity extends ActionBarActivity {
     }
 
     public void openRecords() {
-        Intent intent = new Intent(this, RecordsActivity.class);
-        startActivity(intent);
+        startActivity(RecordsVisualActivity.newInstance(this));
     }
 
     // Method to export all data to CSV and share
@@ -574,6 +581,7 @@ public class MainActivity extends ActionBarActivity {
 
     public void openReport() {
         Intent intent = new Intent(this, ReportActivity.class);
+        intent.putExtra(ReportActivity.TAG_AD_REMOVE_PURCHASED, mAdRemovePurchased);
         startActivity(intent);
     }
 

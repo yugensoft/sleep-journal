@@ -8,7 +8,7 @@ import android.widget.Toast;
 public class CustomTimePickerFragment extends TimePickerFragment {
 
     public static abstract class PickerCallback {
-        public abstract void callback(int hour, int minute); // add parameters if you like
+        public abstract void callback(int hour, int minute);
     }
 
     public PickerCallback pickerCallback;

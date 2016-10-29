@@ -86,8 +86,8 @@ public class TimeEntryDbHandler extends SQLiteOpenHelper implements BaseColumns 
     }
 
     // Method to return a list of time entries of specified time entry types
-    public List<TimeEntry> getAllTimeEntries(boolean returnRecords, boolean returnTargets, boolean returnDefaults) {
-        List<TimeEntry> allTimeEntries = new ArrayList<TimeEntry>();
+    public ArrayList<TimeEntry> getAllTimeEntries(boolean returnRecords, boolean returnTargets, boolean returnDefaults) {
+        ArrayList<TimeEntry> allTimeEntries = new ArrayList<TimeEntry>();
 
         // If nothing to be returned, return empty list
         if (!returnRecords && !returnTargets && !returnDefaults) {

@@ -1,14 +1,7 @@
 // General Todos (v1.2):
-// todo: fix why its getting nothing back from in-app billing
-
-Possible just wind back to the manual in-app billing coding, not using the "helper" that is a piece of crap
-They claim that clearing the cache fixes problems, so the problem could originally have been to do with caching (unpredictable)
-
-In which case, todo:
-- after the adremove is purchased, the loaded ad doesnt disappear immediately from main activity
-- it isn't removed from the sleep report -- make this check central somehow
-- doesnt start showing ads again after cancel
 
 // Next Revision Notes:
 // Add graphical time bars on current day + add/modify records + in records list
 // Add records month splitters
+
+Add another ad for that activity

@@ -1,12 +1,16 @@
 package com.yugensoft.simplesleepjournal;
 
+import android.app.DialogFragment;
 import android.app.LoaderManager;
 import android.content.ContentValues;
+import android.content.Context;
 import android.content.CursorLoader;
+import android.content.Intent;
 import android.content.Loader;
 import android.database.Cursor;
 import android.net.Uri;
 import android.os.Handler;
+import android.support.annotation.Nullable;
 import android.support.v7.app.ActionBarActivity;
 import android.os.Bundle;
 import android.view.Menu;
@@ -14,6 +18,7 @@ import android.view.MenuItem;
 import android.view.View;
 import android.widget.AdapterView;
 import android.widget.ListView;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import com.google.android.gms.analytics.HitBuilders;
@@ -24,7 +29,11 @@ import com.yugensoft.simplesleepjournal.database.TimeEntryDbHandler;
 
 import org.joda.time.DateTime;
 
+import java.util.ArrayList;
+
 public class RecordsActivity extends ActionBarActivity implements LoaderManager.LoaderCallbacks<Cursor> {
+
+    private static final String DIALOG_TAG = "customRecordPicker_with_defaults";
 
     // The loader's unique id. Loader ids are specific to the Activity
     private static final int LOADER_ID = 0;
@@ -37,11 +46,32 @@ public class RecordsActivity extends ActionBarActivity implements LoaderManager.
         TimeEntryDbHandler.COLUMN_TYPE,
         TimeEntryDbHandler.COLUMN_DIRECTION
     };
+    private static final String KEY_RANGE_LOW = "rangelow";
+    private static final String KEY_RANGE_HIGH = "rangehigh";
     // The adapter that binds the data to the listview
     private TimeEntryListCursorAdapter mAdapter;
+    private CustomEntryPickerFragment.PickerCallback CustomRecordPickerCallback;
 
     private ListView listView;
+    private TextView txtTitle;
     private Tracker mTracker;
+
+    private Long mRangeLow = null;
+    private Long mRangeHigh = null;
+
+    /**
+     * Factory method.
+     * @param context Context.
+     * @param rangeLow Center-of-day low range to display.
+     * @param rangeHigh Center-of-day high range to display.
+     * @return Intent.
+     */
+    public static Intent newInstance(Context context, @Nullable Long rangeLow, @Nullable Long rangeHigh){
+        Intent intent = new Intent(context, RecordsActivity.class);
+        if(rangeLow != null) intent.putExtra(KEY_RANGE_LOW,rangeLow);
+        if(rangeHigh != null) intent.putExtra(KEY_RANGE_HIGH,rangeHigh);
+        return intent;
+    }
 
 
     @Override
@@ -51,9 +81,33 @@ public class RecordsActivity extends ActionBarActivity implements LoaderManager.
 
         getSupportActionBar().setDisplayHomeAsUpEnabled(true);
 
+        // get any parameters
+        long rangeHigh = getIntent().getLongExtra(KEY_RANGE_HIGH,-1);
+        long rangeLow = getIntent().getLongExtra(KEY_RANGE_LOW,-1);
+        mRangeHigh = (rangeHigh != -1) ? rangeHigh : null;
+        mRangeLow = (rangeLow != -1) ? rangeLow : null;
+
+        // change the title to match parameters
+        txtTitle = (TextView)findViewById(R.id.text_title);
+        String title = getString(R.string.activity_records_title);
+        HumanReadableConverter hcr = new HumanReadableConverter(this);
+        if(mRangeHigh == null && mRangeLow == null){
+            title += " (" + getString(R.string.all) + ")";
+        } else if (mRangeHigh.equals(mRangeLow)) {
+            title += " " + getString(R.string.for_str) + " " + hcr.ConvertDate(mRangeLow);
+        } else {
+            if (mRangeLow != null) {
+                title += " " + getString(R.string.from) + " " + hcr.ConvertDate(mRangeLow);
+
+            }
+            if (mRangeHigh != null) {
+                title += " " + getString(R.string.to) + " " + hcr.ConvertDate(mRangeHigh);
+            }
+        }
+        txtTitle.setText(title);
+
         // Initialize the CursorLoader
         getLoaderManager().initLoader(LOADER_ID, null, this);
-
 
         listView = (ListView) findViewById(R.id.records_list);
 
@@ -86,6 +140,8 @@ public class RecordsActivity extends ActionBarActivity implements LoaderManager.
         SimpleSleepJournalApplication application = (SimpleSleepJournalApplication) getApplication();
         mTracker = application.getDefaultTracker();
 
+        // Create the callback
+       CustomRecordPickerCallback = CustomEntryPickerFragment.getStandardCustomRecordPickerCallback(this,mTracker,null);
     }
 
     @Override
@@ -95,7 +151,14 @@ public class RecordsActivity extends ActionBarActivity implements LoaderManager.
         // Tracking
         mTracker.setScreenName("Image~" + this.getClass().getSimpleName());
         mTracker.send(new HitBuilders.ScreenViewBuilder().build());
+
+        // Restore the picker callback if dialog fragment still exists
+        CustomEntryPickerFragment dialogFragment = (CustomEntryPickerFragment) getSupportFragmentManager().findFragmentByTag(DIALOG_TAG);
+        if(dialogFragment != null){
+            dialogFragment.pickerCallback = CustomRecordPickerCallback;
+        }
     }
+
 
     AdapterView.OnItemClickListener ListItemClickListener = new AdapterView.OnItemClickListener() {
         @Override
@@ -118,133 +181,20 @@ public class RecordsActivity extends ActionBarActivity implements LoaderManager.
             fragment.setArguments(args);
 
             fragment.pickerCallback = CustomRecordPickerCallback;
-            fragment.show(getSupportFragmentManager(), "customRecordPicker_with_defaults");
+            fragment.show(getSupportFragmentManager(), DIALOG_TAG);
 
         }
     };
 
-    CustomEntryPickerFragment.PickerCallback CustomRecordPickerCallback = new CustomEntryPickerFragment.PickerCallback() {
-        @Override
-        public void callbackSet(final int year, final int month, final int day, final int hour, final int minute, final String direction) {
-            // Run in separate thread, as database work is done
-            final Handler handler = new Handler();
-            new Thread() {
-                @Override
-                public void run() {
-                    // Put into the database
-                    // Try update first. If the row doesn't exist, add it.
-                    ContentValues mUpdateValues = new ContentValues();
-                    DateTime time;
-                    if (direction.equalsIgnoreCase(TimeEntry.Direction.BEDTIME.name()) && hour < 12) {
-                        // Bedtime in morning of following day
-                        time = new DateTime(year, month, day, hour, minute).plusDays(1);
-                    } else {
-                        time = new DateTime(year, month, day, hour, minute);
-                    }
-                    DateTime centerOfDay = new DateTime(year, month, day, 0, 0).plusHours(12);
-                    mUpdateValues.put(TimeEntryDbHandler.COLUMN_TIME, time.getMillis());
-
-                    String mSelectionClause = TimeEntryDbHandler.COLUMN_CENTER_OF_DAY + "=? AND " +
-                            TimeEntryDbHandler.COLUMN_DIRECTION + "=? AND " +
-                            TimeEntryDbHandler.COLUMN_TYPE + "=?";
-                    String[] mSelectionArgs = {String.valueOf(centerOfDay.getMillis()), direction, TimeEntry.TimeEntryType.TIME_RECORD.name()};
-                    int mRowsUpdated = 0;
-
-                    mRowsUpdated = getContentResolver().update(
-                            TimeEntryContentProvider.CONTENT_URI,   // the user dictionary content URI
-                            mUpdateValues,                       // the columns to update
-                            mSelectionClause,                    // the column to select on
-                            mSelectionArgs                      // the value to compare to
-                    );
-
-                    final String toastText;
-                    if (mRowsUpdated == 0) {
-                        // doesn't exist, add it
-                        Uri mNewUri;
-                        ContentValues mNewValues = new ContentValues();
-                        mNewValues.put(TimeEntryDbHandler.COLUMN_TIME, time.getMillis());
-                        mNewValues.put(TimeEntryDbHandler.COLUMN_TYPE, TimeEntry.TimeEntryType.TIME_RECORD.name());
-                        mNewValues.put(TimeEntryDbHandler.COLUMN_DIRECTION, direction);
-                        mNewValues.put(TimeEntryDbHandler.COLUMN_CENTER_OF_DAY, centerOfDay.getMillis());
-
-                        mNewUri = getContentResolver().insert(
-                                TimeEntryContentProvider.CONTENT_URI,   // the content URI
-                                mNewValues                          // the values to insert
-                        );
-
-                        toastText = getString(R.string.custom_record_picker_notify_added);
-                    } else {
-                        toastText = getString(R.string.custom_record_picker_notify_changed);
-                    }
-
-
-                    // Display notification toast on completion
-                    handler.post(new Runnable() {
-                        public void run() {
-
-                            Toast.makeText(
-                                    RecordsActivity.this,
-                                    toastText,
-                                    Toast.LENGTH_LONG
-                            ).show();
-                        }
-                    });
-                }
-            }.start();
-
-            mTracker.send(new HitBuilders.EventBuilder()
-                    .setCategory("Action")
-                    .setAction("Add new record manually")
-                    .build());
-        }
-
-        @Override
-        public void callbackDelete(final int year, final int month, final int day, final int hour, final int minute, final String direction, final long rowId) {
-            // Delete the time entry
-            // Do in separate thread due to database operations
-            final Handler handler = new Handler();
-            new Thread() {
-                @Override
-                public void run() {
-                    // Defines selection criteria for the rows you want to delete
-                    DateTime centerOfDay = new DateTime(year, month, day, 0, 0).plusHours(12);
-                    String mSelectionClause =
-                            TimeEntryDbHandler._ID + "=?";
-                    String[] mSelectionArgs = {String.valueOf(rowId)};
-
-                    // Defines a variable to contain the number of rows deleted
-                    int mRowsDeleted = 0;
-
-                    // Deletes the words that match the selection criteria
-                    mRowsDeleted = getContentResolver().delete(
-                            TimeEntryContentProvider.CONTENT_URI,   // the user dictionary content URI
-                            mSelectionClause,                    // the column to select on
-                            mSelectionArgs                      // the value to compare to
-                    );
-
-                    assert (mRowsDeleted != 1) : "Only one row should have been deleted, total: " + String.valueOf(mRowsDeleted);
-
-                    // Display notification toast on completion
-                    handler.post(new Runnable() {
-                        public void run() {
-                            Toast.makeText(
-                                    RecordsActivity.this,
-                                    getString(R.string.deleted_sleep_record),
-                                    Toast.LENGTH_LONG
-                            ).show();
-                        }
-                    });
-
-                }
-            }.start();
-        }
-    };
 
     // Method called by the Add New button
     public void addRecord(View v) {
         CustomEntryPickerFragment fragment = new CustomEntryPickerFragment();
         Bundle args = new Bundle();
         args.putString(fragment.TAG_TITLE, getString(R.string.add_sleep_record_dialog_title));
+        if(mRangeLow != null) {
+            args.putLong(fragment.TAG_DEFAULT_DATE, mRangeLow);
+        };
         fragment.setArguments(args);
 
         fragment.pickerCallback = CustomRecordPickerCallback;
@@ -260,8 +210,20 @@ public class RecordsActivity extends ActionBarActivity implements LoaderManager.
         switch (loaderID) {
             case LOADER_ID:
                 // Returns a new CursorLoader
-                String selection = TimeEntryDbHandler.COLUMN_TYPE + "=?";
-                String selectionArgs[] = {TimeEntry.TimeEntryType.TIME_RECORD.name()};
+                String selection = TimeEntryDbHandler.COLUMN_TYPE + "=? ";
+                ArrayList<String> selectionArgs = new ArrayList<>();
+                selectionArgs.add(TimeEntry.TimeEntryType.TIME_RECORD.name());
+
+                // apply range constaints if present
+                if(mRangeLow != null) {
+                    selection += " AND " + TimeEntryDbHandler.COLUMN_CENTER_OF_DAY + ">=? ";
+                    selectionArgs.add(mRangeLow.toString());
+                }
+                if(mRangeHigh != null){
+                    selection += " AND " + TimeEntryDbHandler.COLUMN_CENTER_OF_DAY + "<=? ";
+                    selectionArgs.add(mRangeHigh.toString());
+                }
+
                 String sortOrder = TimeEntryDbHandler.COLUMN_CENTER_OF_DAY + " DESC, " +
                         TimeEntryDbHandler.COLUMN_TIME + " DESC";
                 return new CursorLoader(
@@ -269,7 +231,7 @@ public class RecordsActivity extends ActionBarActivity implements LoaderManager.
                         TimeEntryContentProvider.CONTENT_URI,        // Table to query
                         PROJECTION,     // Projection to return
                         selection,            // selection clause
-                        selectionArgs,        // selection arguments
+                        selectionArgs.toArray(new String[selectionArgs.size()]),        // selection arguments
                         sortOrder             // sort order
                 );
             default:

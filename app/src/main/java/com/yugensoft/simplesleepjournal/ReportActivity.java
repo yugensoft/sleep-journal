@@ -4,6 +4,7 @@ import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.support.v7.app.ActionBarActivity;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -12,7 +13,6 @@ import android.widget.ArrayAdapter;
 import android.widget.Spinner;
 import android.widget.TextView;
 
-import com.google.android.gms.ads.AdRequest;
 import com.google.android.gms.ads.AdView;
 import com.google.android.gms.analytics.HitBuilders;
 import com.google.android.gms.analytics.Tracker;
@@ -31,6 +31,9 @@ public class ReportActivity extends ActionBarActivity {
     public final String STATE_END_OF_PERIOD = "endOfPeriod";
     private long sStartOfPeriod = 0;
     private long sEndOfPeriod = 0;
+
+    // Intent bundle calling tags
+    public static final String TAG_AD_REMOVE_PURCHASED = "showads";
 
     private Tracker mTracker;
     private AdView mAdView;
@@ -56,7 +59,11 @@ public class ReportActivity extends ActionBarActivity {
 
         // Load the ad
         mAdView = (AdView) findViewById(R.id.adView);
-        AdFunctions.loadAdIntoAdView(mAdView); // TODO only if enabled
+        boolean isAdRemovePurchased = getIntent().getExtras().getBoolean(TAG_AD_REMOVE_PURCHASED, true);
+        if (MainActivity.DEBUG_LOGS) Log.d("sleep-report", "onCreate: show ad is: "+String.valueOf(isAdRemovePurchased));
+        if(!isAdRemovePurchased) {
+            AdFunctions.loadAdIntoAdView(mAdView);
+        }
 
         // Obtain the shared Tracker instance.
         SimpleSleepJournalApplication application = (SimpleSleepJournalApplication) getApplication();
