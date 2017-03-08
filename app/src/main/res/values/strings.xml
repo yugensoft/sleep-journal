@@ -124,6 +124,9 @@
     <string name="list_all">List all</string>
     <string name="add_new">Add new</string>
     <string name="fail_future_time">Failed, future times cannot be used</string>
+    <string name="preference_records_visual_scale">preference_records_visual_scale</string>
+    <string name="ok">OK</string>
+    <string name="terms_of_use">Terms of Use</string>
 
     <!-- Plurals -->
     <plurals name="blankDays">

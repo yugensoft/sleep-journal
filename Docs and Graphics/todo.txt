@@ -1,7 +1,3 @@
-// General Todos (v1.2):
+// Todos (v1.3):
 
-// Next Revision Notes:
-// Add graphical time bars on current day + add/modify records + in records list
-// Add records month splitters
-
-Add another ad for that activity
+Add another ad for that visual activity

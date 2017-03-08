@@ -30,6 +30,7 @@ import org.joda.time.Period;
 
 public class TargetsActivity extends ActionBarActivity implements LoaderManager.LoaderCallbacks<Cursor> {
     private static final int REQUEST_CODE_TIME_PICKER = 0;
+    private static final String CUSTOM_TARGET_PICKER_TAG = "customTargetPicker";
 
     private Tracker mTracker;
 
@@ -125,13 +126,13 @@ public class TargetsActivity extends ActionBarActivity implements LoaderManager.
             // Open CustomTargetPicker with defaults set, and the delete button available, and the date frozen
             CustomEntryPickerFragment fragment = new CustomEntryPickerFragment();
             Bundle args = new Bundle();
-            args.putLong(fragment.TAG_DEFAULT_DATE, cursor.getLong(cursor.getColumnIndexOrThrow(TimeEntryDbHandler.COLUMN_CENTER_OF_DAY)));
-            args.putLong(fragment.TAG_DEFAULT_TIME, cursor.getLong(cursor.getColumnIndexOrThrow(TimeEntryDbHandler.COLUMN_TIME)));
-            args.putString(fragment.TAG_DEFAULT_DIRECTION, cursor.getString(cursor.getColumnIndexOrThrow(TimeEntryDbHandler.COLUMN_DIRECTION)));
-            args.putBoolean(fragment.TAG_HAS_DELETE, true);
-            args.putBoolean(fragment.TAG_IS_FIXED_DATE, true);
-            args.putBoolean(fragment.TAG_IS_FIXED_DIRECTION, true);
-            args.putString(fragment.TAG_TITLE, getString(R.string.custom_target_picker_title_change));
+            args.putLong(CustomEntryPickerFragment.TAG_DEFAULT_DATE, cursor.getLong(cursor.getColumnIndexOrThrow(TimeEntryDbHandler.COLUMN_CENTER_OF_DAY)));
+            args.putLong(CustomEntryPickerFragment.TAG_DEFAULT_TIME, cursor.getLong(cursor.getColumnIndexOrThrow(TimeEntryDbHandler.COLUMN_TIME)));
+            args.putString(CustomEntryPickerFragment.TAG_DEFAULT_DIRECTION, cursor.getString(cursor.getColumnIndexOrThrow(TimeEntryDbHandler.COLUMN_DIRECTION)));
+            args.putBoolean(CustomEntryPickerFragment.TAG_HAS_DELETE, true);
+            args.putBoolean(CustomEntryPickerFragment.TAG_IS_FIXED_DATE, true);
+            args.putBoolean(CustomEntryPickerFragment.TAG_IS_FIXED_DIRECTION, true);
+            args.putString(CustomEntryPickerFragment.TAG_TITLE, getString(R.string.custom_target_picker_title_change));
             fragment.setArguments(args);
 
             fragment.pickerCallback = CustomTargetPickerCallback;
@@ -371,8 +372,8 @@ public class TargetsActivity extends ActionBarActivity implements LoaderManager.
         fragment.pickerCallback = CustomTargetPickerCallback;
 
         Bundle args = new Bundle();
-        args.putString(fragment.TAG_TITLE, getString(R.string.custom_target_picker_title_new));
+        args.putString(CustomEntryPickerFragment.TAG_TITLE, getString(R.string.custom_target_picker_title_new));
         fragment.setArguments(args);
-        fragment.show(getSupportFragmentManager(), "customTimePicker");
+        fragment.show(getSupportFragmentManager(), CUSTOM_TARGET_PICKER_TAG);
     }
 }

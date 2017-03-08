@@ -93,6 +93,7 @@ Revision History:
                 android:value="com.yugensoft.simplesleepjournal.MainActivity" />
         </activity>
         <activity android:name=".DrawingTestActivity"></activity>
+        <activity android:name=".EulaActivity"/>
     </application>
 
 </manifest>

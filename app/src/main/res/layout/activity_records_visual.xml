@@ -1,35 +1,97 @@
 <?xml version="1.0" encoding="utf-8"?>
-<android.support.design.widget.CoordinatorLayout
+<RelativeLayout
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:ads="http://schemas.android.com/apk/res-auto"
-    android:id="@+id/activity_records_visual"
-    android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:paddingBottom="@dimen/activity_vertical_margin"
-    android:paddingLeft="@dimen/activity_horizontal_margin"
-    android:paddingRight="@dimen/activity_horizontal_margin"
-    android:paddingTop="@dimen/activity_vertical_margin"
-    tools:context="com.yugensoft.simplesleepjournal.RecordsVisualActivity">
+    tools:context="com.yugensoft.simplesleepjournal.RecordsVisualActivity"
+    >
 
-    <ListView
+    <android.support.design.widget.CoordinatorLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:id="@+id/listview"
+        android:id="@+id/activity_records_visual"
+
+        android:paddingBottom="@dimen/activity_vertical_margin"
+        android:paddingLeft="@dimen/activity_horizontal_margin"
+        android:paddingRight="@dimen/activity_horizontal_margin"
+        android:paddingTop="@dimen/activity_vertical_margin"
+        >
+
+        <RelativeLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            >
+            <include
+                android:id="@+id/header"
+                android:layout_height="wrap_content"
+                android:layout_width="match_parent"
+                android:layout_alignParentTop="true"
+                android:gravity="top"
+                layout="@layout/time_entry_day_visual_listview_row"
+                />
+            <View style="@style/Divider"
+                  android:id="@+id/divider"
+                  android:layout_marginTop="5dp"
+                  android:layout_marginBottom="5dp"
+                  android:layout_below="@id/header"
+                />
+            <ListView
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:layout_alignParentBottom="true"
+                android:gravity="bottom"
+                android:layout_below="@id/divider"
+                android:id="@+id/listview"
+                />
+        </RelativeLayout>
+
+        <android.support.design.widget.FloatingActionButton
+            android:id="@+id/floating_button"
+            app:backgroundTint="@color/button_color"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="bottom|end"
+            android:layout_margin="16dp"
+            android:src="@drawable/ic_add"
+            app:layout_anchor="@id/listview"
+            app:layout_anchorGravity="bottom|right|end"
+            android:onClick="addRecord"
+            />
+
+
+    </android.support.design.widget.CoordinatorLayout>
+
+    <View style="@style/Divider"
+          android:id="@+id/bottom_divider"
+          android:layout_marginTop="5dp"
+          android:layout_marginBottom="5dp"
+          android:layout_below="@id/activity_records_visual"
         />
-    <android.support.design.widget.FloatingActionButton
-        android:id="@+id/floating_button"
-        app:backgroundTint="@color/button_color"
-        android:layout_width="wrap_content"
+
+    <RelativeLayout
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_gravity="bottom|end"
-        android:layout_margin="16dp"
-        android:src="@drawable/ic_add"
-        app:layout_anchor="@id/listview"
-        app:layout_anchorGravity="bottom|right|end"
-        android:onClick="addRecord"
-        />
+        android:layout_marginTop="10dp"
+        android:layout_below="@id/bottom_divider"
+        android:layout_alignParentBottom="true"
+        android:descendantFocusability="blocksDescendants"
+        >
+        <com.google.android.gms.ads.AdView
+            android:id="@+id/adView"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_horizontal|bottom"
+            android:layout_alignParentBottom="true"
+            ads:adSize="BANNER"
+            ads:adUnitId="@string/banner_ad_unit_report_id">
+        </com.google.android.gms.ads.AdView>
+    </RelativeLayout>
 
 
-</android.support.design.widget.CoordinatorLayout>
+</RelativeLayout>
+
+

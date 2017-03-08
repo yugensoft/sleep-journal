@@ -32,6 +32,8 @@ public class TimeEntryDisplayCursorAdapter extends BaseAdapter {
     private ArrayList<Long> mDayCenters;
     // stores default targets
     private LinkedHashMap<String, ArrayList<TimeEntry>> mTargets;
+    // used to scale the display bars
+    private float mScale = 1.0f;
 
     public TimeEntryDisplayCursorAdapter(Context context) {
         mContext = context;
@@ -135,6 +137,14 @@ public class TimeEntryDisplayCursorAdapter extends BaseAdapter {
         }
     }
 
+    /**
+     * Set scale
+     * @param scale Scale.
+     */
+    public void setScale(float scale) {
+        this.mScale = scale;
+    }
+
     @Override
     public int getCount() {
         return mEntries.size();
@@ -170,6 +180,7 @@ public class TimeEntryDisplayCursorAdapter extends BaseAdapter {
         // populate the views
         long centerOfDay = getItemId(position);
         textView.setText(new HumanReadableConverter(context).ConvertDate(centerOfDay,"dd-MMM"));
+        displayBar.setRenderScale(mScale);
         if(item.size() == 0) {
             displayBar.setBlank(mSpaces.get(centerOfDay));
         } else {

@@ -439,11 +439,11 @@ public class CustomEntryPickerFragment extends DialogFragment {
         }
 
         // Restore picker callbacks on any dialog fragment that still exists
-        CustomTimePickerFragment timePickerFragment = (CustomTimePickerFragment)getActivity().getSupportFragmentManager().findFragmentByTag(TIME_PICKER_TAG);
+        CustomTimePickerFragment timePickerFragment = (CustomTimePickerFragment)(getActivity().getSupportFragmentManager().findFragmentByTag(TIME_PICKER_TAG));
         if(timePickerFragment != null){
             timePickerFragment.pickerCallback = TimePickerCallback;
         }
-        CustomDatePickerFragment datePickerFragment = (CustomDatePickerFragment) getActivity().getSupportFragmentManager().findFragmentByTag(DATE_PICKER_TAG);
+        CustomDatePickerFragment datePickerFragment = (CustomDatePickerFragment)(getActivity().getSupportFragmentManager().findFragmentByTag(DATE_PICKER_TAG));
         if(datePickerFragment != null){
             datePickerFragment.pickerCallback = DatePickerCallback;
         }

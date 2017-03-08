@@ -339,6 +339,10 @@ public class MainActivity extends ActionBarActivity {
             case R.id.action_remove_ads:
                 purchaseAdRemove();
                 return true;
+            case R.id.action_terms:
+                showTermsOfUse();
+                return true;
+
             // TODO remove after testing
 //            case R.id.action_cancel_remove_ads:
 //                cancelAdRemove();
@@ -347,6 +351,10 @@ public class MainActivity extends ActionBarActivity {
                 return super.onOptionsItemSelected(item);
         }
 
+    }
+
+    private void showTermsOfUse() {
+        startActivity(new Intent(MainActivity.this,EulaActivity.class));
     }
 
     /**

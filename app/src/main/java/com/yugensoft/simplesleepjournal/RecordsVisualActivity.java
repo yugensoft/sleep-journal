@@ -2,13 +2,18 @@ package com.yugensoft.simplesleepjournal;
 
 import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.support.annotation.Nullable;
 import android.support.v4.app.LoaderManager;
 import android.support.v4.content.Loader;
+import android.support.v4.view.ViewCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.MotionEvent;
+import android.view.ScaleGestureDetector;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.AdapterView;
@@ -26,11 +31,14 @@ public class RecordsVisualActivity extends AppCompatActivity implements LoaderMa
     private static final int RECORDS_LOADER_ID = 1;
     private static final int TARGETS_LOADER_ID = 2;
     private static final String DIALOG_TAG = "customRecordPicker";
+    private static final String TAG = "records_visual";
 
     private ListView mListView;
     private TimeEntryDisplayCursorAdapter mAdapter;
     private Tracker mTracker;
     private CustomEntryPickerFragment.PickerCallback CustomRecordPickerCallback;
+    private DayRecordsDisplayBar mHeaderBar;
+    private ViewGroup mHeader;
 
     public static Intent newInstance(Context context) {
         return new Intent(context, RecordsVisualActivity.class);
@@ -62,12 +70,19 @@ public class RecordsVisualActivity extends AppCompatActivity implements LoaderMa
         mListView.setOnItemClickListener(ListItemClickListener);
 
         //header
-        ViewGroup header = (ViewGroup)getLayoutInflater().inflate(R.layout.time_entry_day_visual_listview_row, mListView,false);
-        DayRecordsDisplayBar headerBar = (DayRecordsDisplayBar)header.findViewById(R.id.display_bar);
-        headerBar.makeHeader();
-        TextView headerLabel = (TextView)header.findViewById(R.id.date_textview);
+        mHeader = (ViewGroup) findViewById(R.id.header);
+        mHeaderBar = (DayRecordsDisplayBar)mHeader.findViewById(R.id.display_bar);
+        mHeaderBar.makeHeader();
+        TextView headerLabel = (TextView)mHeader.findViewById(R.id.date_textview);
         headerLabel.setText(R.string.date);
-        mListView.addHeaderView(header);
+
+        // apply scale if different
+        float prefScale = loadScale();
+        if(Float.compare(prefScale, mRoundedScaleFactor) != 0){
+            mScaleFactor = prefScale;
+            mRoundedScaleFactor = prefScale;
+            changeViewScale(prefScale);
+        }
 
         //load data
         getSupportLoaderManager().initLoader(RECORDS_LOADER_ID,null,this).forceLoad();
@@ -80,6 +95,17 @@ public class RecordsVisualActivity extends AppCompatActivity implements LoaderMa
 
         // create the callback
         CustomRecordPickerCallback = CustomEntryPickerFragment.getStandardCustomRecordPickerCallback(this, mTracker, onComplete);
+
+        // focus level
+        mScaleDetector = new ScaleGestureDetector(this, new ScaleListener());
+        mListView.setOnTouchListener(new View.OnTouchListener() {
+            @Override
+            public boolean onTouch(View v, MotionEvent event) {
+                mScaleDetector.onTouchEvent(event);
+
+                return false;
+            }
+        });
     }
 
     @Override
@@ -100,6 +126,88 @@ public class RecordsVisualActivity extends AppCompatActivity implements LoaderMa
             default:
                 return super.onOptionsItemSelected(item);
         }
+    }
+
+    // Zoom / scaling
+    private ScaleGestureDetector mScaleDetector;
+    private float mScaleFactor = 1.0f;
+    private float mRoundedScaleFactor = 1.0f;
+
+    @Override
+    public boolean onTouchEvent(MotionEvent ev) {
+        // Let the ScaleGestureDetector inspect all events.
+        mScaleDetector.onTouchEvent(ev);
+        return false;
+    }
+    private class ScaleListener extends ScaleGestureDetector.SimpleOnScaleGestureListener {
+        @Override
+        public boolean onScale(ScaleGestureDetector detector) {
+            mScaleFactor *= detector.getScaleFactor();
+            Log.d(TAG, "scale input: " + String.valueOf(mScaleFactor));
+
+            // Don't let the scale get too small or too large.
+            mScaleFactor = Math.max(DayRecordsDisplayBar.ScalableSizeParameters.MINIMUM_SCALE,
+                    Math.min(mScaleFactor, DayRecordsDisplayBar.ScalableSizeParameters.MAXIMUM_SCALE));
+
+            // quantize the scale before invalidating views (to avoid excessive re-rendering)
+            float roundedScaleFactor = DayRecordsDisplayBar.ScalableSizeParameters.ROUNDING_FRACTION *
+                    Math.round(mScaleFactor / DayRecordsDisplayBar.ScalableSizeParameters.ROUNDING_FRACTION);
+
+            // check if the new resulting rounded scale is different to the old one
+            if (Float.compare(roundedScaleFactor, mRoundedScaleFactor) != 0) {  // means "different"
+                mRoundedScaleFactor = roundedScaleFactor;
+                changeViewScale(roundedScaleFactor);
+                saveScale(roundedScaleFactor);
+            }
+
+            return true;
+        }
+
+        @Override
+        public boolean onScaleBegin(ScaleGestureDetector detector) {
+            return super.onScaleBegin(detector);
+        }
+
+        @Override
+        public void onScaleEnd(ScaleGestureDetector detector) {
+            super.onScaleEnd(detector);
+        }
+    }
+
+    /**
+     * Does everything required to change the scales of the views.
+     * @param roundedScaleFactor New scale.
+     */
+    private void changeViewScale(float roundedScaleFactor) {
+        // change scales
+        mAdapter.setScale(roundedScaleFactor);
+        mHeaderBar.setRenderScale(roundedScaleFactor);
+        Log.d(TAG, "scale change: " + String.valueOf(roundedScaleFactor));
+        mListView.setAdapter(mAdapter);
+        mListView.invalidateViews();
+        mHeaderBar.requestLayout();
+    }
+
+    /**
+     * Saves the scale as a preference.
+     * @param roundedScaleFactor The scale to save.
+     */
+    private void saveScale(float roundedScaleFactor) {
+        // save as preference
+        SharedPreferences sharedPref = getPreferences(Context.MODE_PRIVATE);
+        SharedPreferences.Editor editor = sharedPref.edit();
+        editor.putFloat(getString(R.string.preference_records_visual_scale), roundedScaleFactor);
+        editor.apply();
+    }
+
+    /**
+     * Loads the scale preference.
+     * @return The scale.
+     */
+    private float loadScale(){
+        //load the scale preference
+        SharedPreferences sharedPref = getPreferences(Context.MODE_PRIVATE);
+        return sharedPref.getFloat(getString(R.string.preference_records_visual_scale), 1.0f);
     }
 
     /**
