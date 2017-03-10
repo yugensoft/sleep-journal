@@ -11,6 +11,7 @@ import android.util.AttributeSet;
 import android.util.Log;
 import android.view.View;
 
+import com.yugensoft.simplesleepjournal.MainActivity;
 import com.yugensoft.simplesleepjournal.R;
 import com.yugensoft.simplesleepjournal.ShapeDrawer;
 import com.yugensoft.simplesleepjournal.database.TimeEntry;
@@ -345,7 +346,7 @@ public class DayRecordsDisplayBar extends View {
         super.onSizeChanged(w, h, oldw, oldh);
 
         if(mIsHeader){
-            Log.d(TAG, "onSizeChanged: header");
+            if (MainActivity.DEBUG_LOGS) Log.d(TAG, "onSizeChanged: header");
         }
 
         // Set dimensions for text, bars, etc
@@ -391,7 +392,7 @@ public class DayRecordsDisplayBar extends View {
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
 
         if(mIsHeader){
-            Log.d(TAG, "onMeasure: header");
+            if (MainActivity.DEBUG_LOGS) Log.d(TAG, "onMeasure: header");
         }
 
         int widthMode = MeasureSpec.getMode(widthMeasureSpec);
@@ -443,7 +444,7 @@ public class DayRecordsDisplayBar extends View {
      */
     public void setRenderScale(float renderScale) {
         this.sizes.setScale(renderScale);
-        Log.d(TAG, "scale change: " + String.valueOf(this.sizes.getScale()));
+        if (MainActivity.DEBUG_LOGS) Log.d(TAG, "scale change: " + String.valueOf(this.sizes.getScale()));
 
         invalidate();
 

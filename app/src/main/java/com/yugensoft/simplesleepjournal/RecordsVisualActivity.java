@@ -143,7 +143,7 @@ public class RecordsVisualActivity extends AppCompatActivity implements LoaderMa
         @Override
         public boolean onScale(ScaleGestureDetector detector) {
             mScaleFactor *= detector.getScaleFactor();
-            Log.d(TAG, "scale input: " + String.valueOf(mScaleFactor));
+            if (MainActivity.DEBUG_LOGS) Log.d(TAG, "scale input: " + String.valueOf(mScaleFactor));
 
             // Don't let the scale get too small or too large.
             mScaleFactor = Math.max(DayRecordsDisplayBar.ScalableSizeParameters.MINIMUM_SCALE,
@@ -182,7 +182,7 @@ public class RecordsVisualActivity extends AppCompatActivity implements LoaderMa
         // change scales
         mAdapter.setScale(roundedScaleFactor);
         mHeaderBar.setRenderScale(roundedScaleFactor);
-        Log.d(TAG, "scale change: " + String.valueOf(roundedScaleFactor));
+        if (MainActivity.DEBUG_LOGS) Log.d(TAG, "scale change: " + String.valueOf(roundedScaleFactor));
         mListView.setAdapter(mAdapter);
         mListView.invalidateViews();
         mHeaderBar.requestLayout();
