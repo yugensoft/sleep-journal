@@ -32,5 +32,5 @@
         <item name="android:paddingTop">10dp</item>
     </style>
 
-    <color name="button_color">#57d8ff</color>
+    <color name="button_color">#6BB9F0</color>
 </resources>
