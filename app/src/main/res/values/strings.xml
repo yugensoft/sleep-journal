@@ -127,6 +127,11 @@
     <string name="preference_records_visual_scale">preference_records_visual_scale</string>
     <string name="ok">OK</string>
     <string name="terms_of_use">Terms of Use</string>
+    <string name="button_allow">Allow</string>
+    <string name="button_deny">Deny</string>
+    <string name="permission_needed">Need permission to read and write to external storage</string>
+    <string name="permission_denied">Permission denied</string>
+    <string name="permission_no_ask">Permission denied (and requested not to ask again)</string>
 
     <!-- Plurals -->
     <plurals name="blankDays">

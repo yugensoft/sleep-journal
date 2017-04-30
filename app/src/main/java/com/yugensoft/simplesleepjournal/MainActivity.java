@@ -4,17 +4,23 @@ import android.app.PendingIntent;
 import android.content.ComponentName;
 import android.content.ContentValues;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentSender;
 import android.content.ServiceConnection;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.RemoteException;
+import android.support.annotation.NonNull;
+import android.support.annotation.RequiresPermission;
+import android.support.v4.content.ContextCompat;
 import android.support.v7.app.ActionBarActivity;
 import android.os.Bundle;
+import android.support.v7.app.AlertDialog;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -22,6 +28,7 @@ import android.view.View;
 import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
+import android.Manifest;
 
 import com.android.vending.billing.IInAppBillingService;
 import com.google.android.gms.ads.AdView;
@@ -38,7 +45,16 @@ import org.json.JSONObject;
 
 import java.util.ArrayList;
 
+import permissions.dispatcher.NeedsPermission;
+import permissions.dispatcher.OnNeverAskAgain;
+import permissions.dispatcher.OnPermissionDenied;
+import permissions.dispatcher.OnShowRationale;
+import permissions.dispatcher.PermissionRequest;
+import permissions.dispatcher.RuntimePermissions;
 
+import static com.yugensoft.simplesleepjournal.MainActivityPermissionsDispatcher.exportDataWithCheck;
+
+@RuntimePermissions
 public class MainActivity extends ActionBarActivity {
 
     // states
@@ -334,7 +350,7 @@ public class MainActivity extends ActionBarActivity {
                 openAboutDialog();
                 return true;
             case R.id.action_export:
-                exportData();
+                exportDataWithCheck(this);
                 return true;
             case R.id.action_remove_ads:
                 purchaseAdRemove();
@@ -558,11 +574,10 @@ public class MainActivity extends ActionBarActivity {
     }
 
     // Method to export all data to CSV and share
-    public void exportData(View view) {
-        exportData();
-    }
-
+    // Uses permission checks
+    @NeedsPermission({Manifest.permission.WRITE_EXTERNAL_STORAGE, Manifest.permission.READ_EXTERNAL_STORAGE})
     public void exportData() {
+
         ExportToCsvTask task = new ExportToCsvTask(MainActivity.this);
         task.execute();
 
@@ -571,6 +586,39 @@ public class MainActivity extends ActionBarActivity {
                 .setCategory("Action")
                 .setAction("ExportToCSV")
                 .build());
+    }
+    @OnShowRationale({Manifest.permission.WRITE_EXTERNAL_STORAGE, Manifest.permission.READ_EXTERNAL_STORAGE})
+    void showRationale(final PermissionRequest request) {
+        new AlertDialog.Builder(this)
+                .setMessage(R.string.permission_needed)
+                .setPositiveButton(R.string.button_allow, new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        request.proceed();
+                    }
+                })
+                .setNegativeButton(R.string.button_deny, new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        request.cancel();
+                    }
+                })
+                .show();
+    }
+    @OnPermissionDenied({Manifest.permission.WRITE_EXTERNAL_STORAGE, Manifest.permission.READ_EXTERNAL_STORAGE})
+    void showDenied() {
+        Toast.makeText(this, R.string.permission_denied, Toast.LENGTH_SHORT).show();
+    }
+    @OnNeverAskAgain({Manifest.permission.WRITE_EXTERNAL_STORAGE, Manifest.permission.READ_EXTERNAL_STORAGE})
+    void showNeverAsk() {
+        Toast.makeText(this, R.string.permission_no_ask, Toast.LENGTH_SHORT).show();
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        // NOTE: delegate the permission handling to generated method
+        MainActivityPermissionsDispatcher.onRequestPermissionsResult(this, requestCode, grantResults);
     }
 
     // Method to open targets activity to manage targets
