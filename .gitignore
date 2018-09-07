@@ -41,6 +41,7 @@ captures/
 .idea/dictionaries
 .idea/libraries
 .idea/caches
+.idea
 
 # Keystore files
 *.jks
@@ -65,3 +66,5 @@ fastlane/readme.md
 
 # misc
 .DS_Store
+projectFilesBackup
+docs_and_graphics

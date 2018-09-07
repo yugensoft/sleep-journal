@@ -3,9 +3,6 @@ package com.yugensoft.simplesleepjournal;
 import com.google.android.gms.ads.AdRequest;
 import com.google.android.gms.ads.AdView;
 
-/**
- * Created by yugensoft on 5/09/2016.
- */
 public class AdFunctions {
     /**
      * Function to load an ad request into an adview
